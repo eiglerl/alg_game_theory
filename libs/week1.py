@@ -1,5 +1,6 @@
 import numpy as np
 
+<<<<<<< HEAD
 def compute_non_zero_sum_game_value(matrix1, matrix2, p1_strat, p2_strat):
     # create probability matrix
     prob_matrix = p2_strat @ p1_strat
@@ -85,3 +86,19 @@ temp1, temp2 = iterated_removal_of_dominated_strategies(matrix1, matrix2)
 print(temp1)
 print(temp2)
         
+=======
+
+def evaluate(matrix: np.array, row_strategy: np.array, column_strategy: np.array) -> float:
+    """Value of the row play when the row and column player use their respective strategies"""
+    return 0.0
+
+
+def best_response_value_row(matrix: np.array, row_strategy: np.array) -> float:
+    """Value of the row player when facing a best-responding column player"""
+    return 0.0
+
+
+def best_response_value_column(matrix: np.array, column_strategy: np.array) -> float:
+    """Value of the column player when facing a best-responding row player"""
+    return 0.0
+>>>>>>> 0fca245b86fcf6733c396e48093215162614b2eb

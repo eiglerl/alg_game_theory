@@ -15,3 +15,26 @@ def test_week1():
     br_value_column = week1.best_response_value_column(matrix=matrix, column_strategy=column_strategy)
     assert br_value_row == pytest.approx(-0.6)
     assert br_value_column == pytest.approx(-0.2)
+
+
+    # my tests
+    matrix1 = np.array([[13,1,7], [4,3,6], [-1,2,8]])
+    matrix2 = np.array([[3,4,3], [1,3,2], [9,8,-1]])
+
+    matrixA, matrixB = week1.iterated_removal_of_dominated_strategies(matrix1=matrix1, matrix2=matrix2)
+    expected_matrixA = np.array([[13, 1], [4, 3]])
+    expected_matrixB = np.array([[3, 4], [1, 3]])
+
+    assert np.array_equal(matrixA, expected_matrixA)
+    assert np.array_equal(matrixB, expected_matrixB)
+
+    matrix1 = np.array([[10,5,3], [0,4,6], [2,3,2]])
+    matrix2 = np.array([[4,3,2], [1,6,0], [1,5,8]])
+
+    matrixA, matrixB = week1.iterated_removal_of_dominated_strategies(matrix1=matrix1, matrix2=matrix2)
+    expected_matrixA = np.array([[10]])
+    expected_matrixB = np.array([[4]])
+
+    assert np.array_equal(matrixA, expected_matrixA)
+    assert np.array_equal(matrixB, expected_matrixB)
+

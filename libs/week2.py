@@ -1,24 +1,34 @@
 from typing import List, Optional
 from scipy.optimize import linprog
 import numpy as np
-import libs.week1 as week1
+import week1 as week1
 import matplotlib.pyplot as plt
 
 def verify_support_one_side(matrix: np.array, support_row: List, support_col: List) -> Optional[List]:
     """Tries to see whether the column player can mix their strategies in the support so that the values of the row player are best-responding"""
     submatrix = matrix[support_row][:, support_col]
+    result = verify_matrix(submatrix)
+    if result.success:
+        return result.x[1:]
+    return None
     num_rows, num_cols = submatrix.shape
+    # print(f"rows: {num_rows}, cols: {num_cols}")
 
     # print(f"submatrix: \n{submatrix}")
+    # print(f"submatrix.T: \n{submatrix.T}")
     # add utility
     A_eq = np.hstack([np.array([[1]*num_rows]).T, submatrix])
+    print(A_eq)
     # print(f"with utility: \n{A_eq}")
 
     # probabilites sum to 1
     A_eq = np.vstack([A_eq, [0]+[1]*(num_cols)])
-    # print(f"prob sum to 1: \n{A_eq}")
+    # total utility + sum of prob[i] * utility[i] = 0, sum of prob[i] = 1
     b_eq = [0] * (num_rows) + [1]
+    # max utility
     c = [1] + [0] * num_cols
+
+    # bounds for utility and probabilities
     bounds = [(None, None)] + [(0,1) for _ in range(num_cols)]
 
 
@@ -33,8 +43,12 @@ def verify_support_one_side(matrix: np.array, support_row: List, support_col: Li
     # result = linprog(c, A_ub=A_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
 
     if result.success:
+        # if np.all(result.x[1:] > 0):
         return result.x[1:]
-    else:
+            # print("more than 0")
+        # print(f"utility: {result.x[0]}")
+        
+    
         return None
 
     # print(matrix)
@@ -42,6 +56,20 @@ def verify_support_one_side(matrix: np.array, support_row: List, support_col: Li
     # print(support_row)
     # print(support_col)
     return None
+
+def verify_matrix(submatrix: np.array):
+    num_rows, num_cols = submatrix.shape
+    A_eq = np.hstack([np.array([[1]*num_rows]).T, submatrix])
+    A_eq = np.vstack([A_eq, [0]+[1]*(num_cols)])
+
+    b_eq = [0] * (num_rows) + [1]
+
+    c = [1] + [0] * num_cols
+
+    bounds = [(None, None)] + [(0,1) for _ in range(num_cols)]
+
+    return linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
+
 
 def get_all_possible_supports(n_actions: int, m_actions: int):
     actions1 = list(range(n_actions))
@@ -66,7 +94,7 @@ def nash_equlibrium_for_supports(matrix: np.array):
         print(f"{i}/{len(all_supports)}")
         i += 1
         res = verify_support_one_side(matrix=matrix, support_row=row, support_col=col)
-        if res is not None:
+        if res is not None and len(row) > 1 and len(col) > 1:
             results[f"row: {row}, col: {col}"] = res
     
     return results
@@ -97,10 +125,17 @@ matrix_p1 = np.array([[0, 0, -10], [1, -10, -10], [-10, -10, -10]])
 matrix_p2 = np.array([[0, 1, -10], [0, -10, -10], [-10, -10, -10]])
 
 
-# result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])
+result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1])
+print(result)
 # print(result)
 # enumerate_all_supports(matrix)
-results = nash_equlibrium_for_supports(matrix)
+# results = nash_equlibrium_for_supports(matrix)
 
-for strat, res in results.items():
-    print(strat, res)
+# for strat, res in results.items():
+#     print(strat, "prob:", res)
+
+
+# matrix_p1 = np.array([[0, 0, -10], [1, -10, -10], [-10, -10, -10]])
+# results = nash_equlibrium_for_supports(matrix_p1)
+# for strat, res in results.items():
+#     print(strat, "prob:", res)

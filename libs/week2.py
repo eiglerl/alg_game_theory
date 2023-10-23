@@ -14,6 +14,13 @@ def verify_support_one_side(matrix: np.array, support_row: List, support_col: Li
     num_rows, num_cols = submatrix.shape
     # print(f"rows: {num_rows}, cols: {num_cols}")
 
+
+
+    # 1*-U_1 1*p_1 0*p_2 = 0
+    # 1*-U_2 2*p_1 1*p_2 = 0
+    # 0 1*p_1 1*p_2 = 1
+
+    
     # print(f"submatrix: \n{submatrix}")
     # print(f"submatrix.T: \n{submatrix.T}")
     # add utility

@@ -9,7 +9,7 @@ def test_week2():
     matrix_p2 = np.array([[0, 1, -10], [0, -10, -10], [-10, -10, -10]])
 
 
-    result = week2.verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1])
+    result = week2.verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])
     nptest.assert_allclose(result, [0.90909, 0.09090], rtol=1e-3)
 
 

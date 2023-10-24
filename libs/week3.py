@@ -10,8 +10,9 @@ def compute_deltas(matrix: np.array, row_strategy: np.array, column_strategy: np
     # utility of best response player against current row => best response player recieves -1 times the value
     best_col_utility = -week1.best_response_value_row(matrix, row_strategy)
 
-
+    # same as for the column player
     best_row_utility = -week1.best_response_value_column(matrix, column_strategy)
+    print(best_col_utility, best_row_utility)
     return np.array([best_row_utility - utility_row, best_col_utility - utility_col])
 
 def nash_conv(matrix: np.array, row_strategy: np.array, column_strategy: np.array) -> float:
@@ -34,6 +35,9 @@ column_strategy = np.array([[0.3, 0.2, 0.5]]).transpose()
 delta_row, delta_column = compute_deltas(matrix=matrix, row_strategy=row_strategy,
                                                 column_strategy=column_strategy)
 print(f"row: {delta_row}", f"col: {delta_column}",sep='\n')
+
+expl = compute_exploitability_zero_sum(matrix, row_strategy, column_strategy)
+print(f"exploitability: {expl}")
 
     # assert delta_row == pytest.approx(0.12)
     # assert delta_column == pytest.approx(0.68)

@@ -3,16 +3,15 @@ import week1 as week1
 
 
 def compute_deltas(matrix: np.array, row_strategy: np.array, column_strategy: np.array) -> np.array:
-    """Computer how much the players could improve if they were to switch to a best response"""    
-    
-    best_row_strategy = week1.best_response(matrix, column_strategy, for_row=False)
-    best_col_strategy = week1.best_response(-matrix, row_strategy, for_row=True)
+    """Compute how much the players could improve if they were to switch to a best response"""    
+    # current utility for both row and column player
+    utility_row, utility_col = week1.compute_non_zero_sum_game_value(-matrix, matrix, row_strategy, column_strategy)
 
-    utility_row, utility_col = week1.compute_non_zero_sum_game_value(matrix, -matrix, row_strategy, column_strategy)
-    best_row_utility, _ = week1.compute_non_zero_sum_game_value(matrix, -matrix, best_row_strategy, column_strategy)
-    _, best_col_utility = week1.compute_non_zero_sum_game_value(matrix, -matrix, row_strategy, best_col_strategy.T)
-    print(f"col {best_col_utility}-{utility_col}={best_col_utility-utility_col}")
-    print(f"row {best_row_utility}-{utility_row}={best_row_utility-utility_row}")
+    # utility of best response player against current row => best response player recieves -1 times the value
+    best_col_utility = -week1.best_response_value_row(matrix, row_strategy)
+
+
+    best_row_utility = -week1.best_response_value_column(matrix, column_strategy)
     return np.array([best_row_utility - utility_row, best_col_utility - utility_col])
 
 def nash_conv(matrix: np.array, row_strategy: np.array, column_strategy: np.array) -> float:

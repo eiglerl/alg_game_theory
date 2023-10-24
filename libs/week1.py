@@ -12,13 +12,20 @@ def compute_non_zero_sum_game_value(matrix1, matrix2, p1_strat, p2_strat):
 
 def best_response(matrix, strat, for_row=True):
     expected_payoffs = (strat @ matrix) if for_row else (matrix @ strat)
-    len = expected_payoffs.shape[1] if for_row else expected_payoffs.shape[0]
-    max_payoff = np.argmax(expected_payoffs)
-    best_response = create_pure_strategy(len, max_payoff)
+    axis = 1 if for_row else 0
+    # len = expected_payoffs.shape[1] if for_row else expected_payoffs.shape[0]
+    len = expected_payoffs.shape[axis]
+    # print(f"excepted pay off ","row " if for_row else "col ", expected_payoffs)
+    max_payoff = np.argmax(expected_payoffs, axis=axis)
+    # print(f"max payoff {max_payoff} -> {np.take(expected_payoffs, max_payoff, axis=axis)}")
+    best_response = create_pure_strategy(len, max_payoff, transpose=for_row)
     return best_response
 
-def create_pure_strategy(len, index):
-    return np.array([[1 if i==index else 0 for i in range(len)]])
+def create_pure_strategy(len, index, transpose):
+    response = np.array([[1 if i==index else 0 for i in range(len)]])
+    if transpose:
+        return response.T
+    return response
 
 def find_dominated_actions(matrix, axis):
     dominated_actions = []
@@ -79,14 +86,14 @@ def evaluate(matrix: np.array, row_strategy: np.array, column_strategy: np.array
 
 
 def best_response_value_row(matrix: np.array, row_strategy: np.array) -> float:
-    """Value of the row player when facing a best-responding column player"""
+    """Value of the row player when facing a best-responding column player in a zero-sum game"""
     response = best_response(-matrix, row_strategy, for_row=True)
-    p1_val, p2_val = compute_non_zero_sum_game_value(-matrix, matrix, row_strategy, response.T)
+    p1_val, p2_val = compute_non_zero_sum_game_value(-matrix, matrix, row_strategy, response)
     return p1_val
 
 
 def best_response_value_column(matrix: np.array, column_strategy: np.array) -> float:
-    """Value of the column player when facing a best-responding row player"""
+    """Value of the column player when facing a best-responding row player in a zero-sum game"""
     response = best_response(matrix, column_strategy, for_row=False)
     p1_val, p2_val = compute_non_zero_sum_game_value(-matrix, matrix, response, column_strategy)
     return p2_val

@@ -4,8 +4,6 @@ def compute_non_zero_sum_game_value(matrix1, matrix2, p1_strat, p2_strat):
     # create probability matrix
     prob_matrix = p2_strat @ p1_strat
     # calculate values
-    # print(matrix1.shape, matrix2.shape, prob_matrix.shape)
-    # print(p2_strat.shape, p1_strat.shape)
     p1_val = np.sum(matrix1 * prob_matrix)
     p2_val = np.sum(matrix2 * prob_matrix)
     return p1_val, p2_val

@@ -2,7 +2,7 @@ import numpy as np
 
 def compute_non_zero_sum_game_value(matrix1, matrix2, p1_strat, p2_strat):
     # create probability matrix
-    prob_matrix = p2_strat @ p1_strat
+    prob_matrix = (p2_strat @ p1_strat).T
     # calculate values
     p1_val = np.sum(matrix1 * prob_matrix)
     p2_val = np.sum(matrix2 * prob_matrix)
@@ -22,10 +22,10 @@ def compute_non_zero_sum_game_value(matrix1, matrix2, p1_strat, p2_strat):
 
 def best_response_to_row_player_in_zerosum(matrix: np.array, row_strat: np.array) -> np.array:
     """Assumes the matrix is the utility matrix of column player."""
-    return best_response_to_row_player(matrix, row_strat)
+    return best_response_to_row_player(-matrix, row_strat)
 def best_response_to_col_player_in_zerosum(matrix: np.array, col_strat: np.array) -> np.array:
     """Assumes the matrix is the utility matrix of column player."""
-    return best_response_to_col_player(-matrix, col_strat)
+    return best_response_to_col_player(matrix, col_strat)
 
 
 def best_response_to_row_player(matrix: np.array, row_strat: np.array) -> np.array:
@@ -56,11 +56,11 @@ def best_response_strat(matrix: np.array, row_strat=None, col_strat=None) -> np.
     max_payoff = np.argmax(expected_payoffs, axis=axis)
     return create_pure_strategy(len=n, index=max_payoff)
 
-def best_response(matrix, strat):
-    if strat.shape[0] == 1:
-        return best_response_to_col_player(matrix, col_strat=strat)
+def best_response_zerosum(matrix, strat):
+    if strat.shape[1] == 1:
+        return best_response_to_col_player_in_zerosum(matrix, col_strat=strat)
     else:
-        return best_response_to_row_player(matrix, row_strat=strat)
+        return best_response_to_row_player_in_zerosum(matrix, row_strat=strat)
 
 def create_pure_strategy(len, index):
     response = np.array([[1 if i==index else 0 for i in range(len)]])
@@ -117,29 +117,29 @@ def iterated_removal_of_dominated_strategies(matrix1, matrix2):
 # print(temp1)
 # print(temp2)
 
-matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
+# matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
 
-column_strategy = np.array([[0.3, 0.2, 0.5]]).transpose()
-br = best_response_to_col_player_in_zerosum(matrix, col_strat=column_strategy)
-print(br)
+# column_strategy = np.array([[0.3, 0.2, 0.5]]).transpose()
+# br = best_response_to_col_player_in_zerosum(matrix, col_strat=column_strategy)
+# print(br)
         
 
 def evaluate(matrix: np.array, row_strategy: np.array, column_strategy: np.array) -> float:
     """Value of the row play when the row and column player use their respective strategies"""
-    row_val, col_val = compute_non_zero_sum_game_value(-matrix, matrix, row_strategy, column_strategy)
+    row_val, col_val = compute_non_zero_sum_game_value(matrix, -matrix, row_strategy, column_strategy)
     return row_val
 
 
 def best_response_value_row(matrix: np.array, row_strategy: np.array) -> float:
     """Value of the row player when facing a best-responding column player in a zero-sum game"""
     response = best_response_to_row_player(-matrix, row_strategy)
-    p1_val, p2_val = compute_non_zero_sum_game_value(-matrix, matrix, row_strategy, response)
+    p1_val, p2_val = compute_non_zero_sum_game_value(matrix, -matrix, row_strategy, response)
     return p1_val
 
 
 def best_response_value_column(matrix: np.array, column_strategy: np.array) -> float:
     """Value of the column player when facing a best-responding row player in a zero-sum game"""
     response = best_response_to_col_player(matrix, column_strategy)
-    p1_val, p2_val = compute_non_zero_sum_game_value(-matrix, matrix, response, column_strategy)
+    p1_val, p2_val = compute_non_zero_sum_game_value(matrix, -matrix, response, column_strategy)
     return p2_val
 

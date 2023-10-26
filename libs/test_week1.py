@@ -17,7 +17,31 @@ def test_week1():
     assert br_value_column == pytest.approx(-0.2)
 
 
-    # my tests
+def test_prob():
+    matrix = np.array([[0, 1, -1], [-1, 0, 1]])
+
+    row_strat = np.array([[0.1, 0.9]])
+    col_strat = np.array([[0.3, 0.2, 0.5]]).T
+
+    prob_matrix = (col_strat @ row_strat).T#.reshape(matrix.shape)
+    print(prob_matrix)
+    utility = prob_matrix * matrix
+
+    print(utility)
+    print("-----")
+
+    matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
+    row_strat = np.array([[0.1, 0.7, 0.2]])
+    col_strat = np.array([[0.3, 0.2, 0.5]]).T
+
+    prob_matrix = (col_strat @ row_strat).T
+    print(prob_matrix)
+    utility = prob_matrix * matrix
+
+    print(utility)
+
+
+def test_best_response():
     # best response in RPS
     matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
     row_strat = np.array([[0.1, 0.2, 0.7]])
@@ -39,7 +63,7 @@ def test_week1():
     br = week1.best_response_to_col_player(matrix, col_strat=column_strategy)
     assert np.array_equal(br, np.array([[0, 1, 0]]))
 
-
+def test_iterated_removal():
     matrix1 = np.array([[13,1,7], [4,3,6], [-1,2,8]])
     matrix2 = np.array([[3,4,3], [1,3,2], [9,8,-1]])
 
@@ -60,3 +84,4 @@ def test_week1():
     assert np.array_equal(matrixA, expected_matrixA)
     assert np.array_equal(matrixB, expected_matrixB)
 
+test_prob()

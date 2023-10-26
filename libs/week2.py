@@ -113,27 +113,28 @@ def best_response_value_function(matrix: np.array, step_size: float):
     vals = []
     for step in steps:
         new_strat = np.array([[step, 1-step]])
-        br = week1.best_response(matrix, new_strat, for_row=True)
-        p1_val, p2_val = week1.compute_non_zero_sum_game_value(-matrix.T, matrix.T, new_strat, br.T)
+        br = week1.best_response_to_row_player_in_zerosum(matrix, new_strat)
+        # TODO: weird graph
+        p1_val, p2_val = week1.compute_non_zero_sum_game_value(matrix, -matrix, new_strat, br)
         vals.append(p1_val)
     
     plt.scatter(steps, vals, s=10)
     plt.show()
 
 
-matrix = np.array([[-1, 0, -0.8],
-                   [1, -1, -0.5]])
-strat_col = np.array([[0.2, 0.3, 0.5]]).T
+matrix = np.array([[2, 0, 0.8],
+                   [-1, 1, -0.5]])
+strat_col = np.array([[0.2, 0.3, 0.5]])
 strat_row = np.array([[0.4, 0.6]])
 
-# best_response_value_function(-matrix, step_size=0.05)
+best_response_value_function(matrix, step_size=0.01)
 
-matrix_p1 = np.array([[0, 0, -10], [1, -10, -10], [-10, -10, -10]])
-matrix_p2 = np.array([[0, 1, -10], [0, -10, -10], [-10, -10, -10]])
+# matrix_p1 = np.array([[0, 0, -10], [1, -10, -10], [-10, -10, -10]])
+# matrix_p2 = np.array([[0, 1, -10], [0, -10, -10], [-10, -10, -10]])
 
 
-result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1])
-print(result)
+# result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1])
+# print(result)
 # print(result)
 # enumerate_all_supports(matrix)
 # results = nash_equlibrium_for_supports(matrix)

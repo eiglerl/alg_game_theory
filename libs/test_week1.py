@@ -18,6 +18,28 @@ def test_week1():
 
 
     # my tests
+    # best response in RPS
+    matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
+    row_strat = np.array([[0.1, 0.2, 0.7]])
+    br = week1.best_response_to_row_player_in_zerosum(matrix, row_strat=row_strat)
+    assert np.array_equal(br, np.array([[1, 0, 0]]).T)
+
+    # matrix transposed
+    column_strategy = np.array([[0.3, 0.2, 0.5]]).T
+    br = week1.best_response_to_col_player_in_zerosum(matrix, col_strat=column_strategy)
+    assert np.array_equal(br, np.array([[1, 0, 0]]))
+
+    # MxN matrix
+    matrix = np.array([[1, 0], [-1, 1], [1, 0]])
+    row_strat = np.array([[0.1, 0.2, 0.7]])
+    br = week1.best_response_to_row_player(matrix, row_strat=row_strat)
+    assert np.array_equal(br, np.array([[1, 0]]).T)
+
+    column_strategy = np.array([[0.3, 0.7]]).T
+    br = week1.best_response_to_col_player(matrix, col_strat=column_strategy)
+    assert np.array_equal(br, np.array([[0, 1, 0]]))
+
+
     matrix1 = np.array([[13,1,7], [4,3,6], [-1,2,8]])
     matrix2 = np.array([[3,4,3], [1,3,2], [9,8,-1]])
 

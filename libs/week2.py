@@ -2,11 +2,14 @@ from typing import List, Optional
 from scipy.optimize import linprog
 import numpy as np
 import week1 as week1
+# from . import week1
 import matplotlib.pyplot as plt
 
 def verify_support_one_side(matrix: np.array, support_row: List, support_col: List) -> Optional[List]:
     """Tries to see whether the column player can mix their strategies in the support so that the values of the row player are best-responding"""
     submatrix = matrix[support_row][:, support_col]
+    # print(f"submatrix {submatrix}")
+    # print(f"submatrix.T {submatrix.T}")
     result = verify_matrix(submatrix)
     if result.success:
         return result.x[1:]
@@ -68,11 +71,13 @@ def verify_matrix(submatrix: np.array):
     num_rows, num_cols = submatrix.shape
     A_eq = np.hstack([np.array([[1]*num_rows]).T, submatrix])
     A_eq = np.vstack([A_eq, [0]+[1]*(num_cols)])
-
+    print(A_eq)
+    print('--')
     b_eq = [0] * (num_rows) + [1]
-
+    print(b_eq)
+    print('--')
     c = [1] + [0] * num_cols
-
+    print(c)
     bounds = [(None, None)] + [(0,1) for _ in range(num_cols)]
 
     return linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
@@ -98,7 +103,7 @@ def nash_equlibrium_for_supports(matrix: np.array):
     results = {}
     i = 1
     for row, col in all_supports:
-        print(f"{i}/{len(all_supports)}")
+        # print(f"{i}/{len(all_supports)}")
         i += 1
         res = verify_support_one_side(matrix=matrix, support_row=row, support_col=col)
         if res is not None and len(row) > 1 and len(col) > 1:
@@ -122,21 +127,29 @@ def best_response_value_function(matrix: np.array, step_size: float):
     plt.show()
 
 
-matrix = np.array([[2, 0, 0.8],
-                   [-1, 1, -0.5]])
-strat_col = np.array([[0.2, 0.3, 0.5]])
-strat_row = np.array([[0.4, 0.6]])
+# matrix = np.array([[2, 0, 0.8],
+#                    [-1, 1, -0.5]])
+# strat_col = np.array([[0.2, 0.3, 0.5]])
+# strat_row = np.array([[0.4, 0.6]])
 
-best_response_value_function(matrix, step_size=0.01)
+# best_response_value_function(matrix, step_size=0.01)
 
-# matrix_p1 = np.array([[0, 0, -10], [1, -10, -10], [-10, -10, -10]])
-# matrix_p2 = np.array([[0, 1, -10], [0, -10, -10], [-10, -10, -10]])
+matrix_p1 = np.array([[0, 0, -10],
+                      [1, -10, -10],
+                      [-10, -10, -10]])
+matrix_p2 = np.array([[0, 1, -10],
+                      [0, -10, -10],
+                      [-10, -10, -10]])
 
 
-# result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1])
-# print(result)
-# print(result)
+result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])
+print(f"result: {result}")
+print('------------')
+result = verify_support_one_side(matrix = matrix_p1.T, support_row=[0, 1], support_col = [0, 1, 2])
+print(f"result: {result}")
+
 # enumerate_all_supports(matrix)
+# matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
 # results = nash_equlibrium_for_supports(matrix)
 
 # for strat, res in results.items():

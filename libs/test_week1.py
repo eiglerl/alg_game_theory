@@ -40,25 +40,27 @@ def test_prob():
 
     print(utility)
 
-
-def test_best_response():
-    # best response in RPS
+# best response in RPS
+def test_best_response_rps_against_row():
     matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
     row_strat = np.array([[0.1, 0.2, 0.7]])
     br = week1.best_response_to_row_player_in_zerosum(matrix, row_strat=row_strat)
     assert np.array_equal(br, np.array([[1, 0, 0]]).T)
 
-    # matrix transposed
+def test_best_response_rps_against_column():
+    matrix = np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
     column_strategy = np.array([[0.3, 0.2, 0.5]]).T
     br = week1.best_response_to_col_player_in_zerosum(matrix, col_strat=column_strategy)
     assert np.array_equal(br, np.array([[1, 0, 0]]))
 
-    # MxN matrix
+# MxN matrix
+def test_best_response_nxm_against_row():
     matrix = np.array([[1, 0], [-1, 1], [1, 0]])
     row_strat = np.array([[0.1, 0.2, 0.7]])
     br = week1.best_response_to_row_player(matrix, row_strat=row_strat)
     assert np.array_equal(br, np.array([[1, 0]]).T)
-
+def test_best_response_nxm_against_column():
+    matrix = np.array([[1, 0], [-1, 1], [1, 0]])
     column_strategy = np.array([[0.3, 0.7]]).T
     br = week1.best_response_to_col_player(matrix, col_strat=column_strategy)
     assert np.array_equal(br, np.array([[0, 1, 0]]))

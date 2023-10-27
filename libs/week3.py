@@ -5,8 +5,8 @@ import week1 as week1
 def compute_deltas(matrix: np.array, row_strategy: np.array, column_strategy: np.array) -> np.array:
     """Compute how much the players could improve if they were to switch to a best response"""    
     # current utility for both row and column player
-    utility_row, utility_col = week1.compute_non_zero_sum_game_value(-matrix, matrix, row_strategy, column_strategy)
-    print("u", utility_row, utility_col)
+    utility_row, utility_col = week1.compute_non_zero_sum_game_value(matrix, -matrix, row_strategy, column_strategy)
+    # print("u", utility_row, utility_col)
     # utility of best response player against current row => best response player recieves -1 times the value
     best_col_utility = -week1.best_response_value_row(matrix, row_strategy)
 

@@ -5,8 +5,12 @@ import numpy.testing as nptest
 
 
 def test_week2():
-    matrix_p1 = np.array([[0, 0, -10], [1, -10, -10], [-10, -10, -10]])
-    matrix_p2 = np.array([[0, 1, -10], [0, -10, -10], [-10, -10, -10]])
+    matrix_p1 = np.array([[0, 0, -10],
+                          [1, -10, -10],
+                          [-10, -10, -10]])
+    matrix_p2 = np.array([[0, 1, -10],
+                          [0, -10, -10],
+                          [-10, -10, -10]])
 
 
     result = week2.verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])

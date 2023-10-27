@@ -22,10 +22,10 @@ def compute_non_zero_sum_game_value(matrix1, matrix2, p1_strat, p2_strat):
 
 def best_response_to_row_player_in_zerosum(matrix: np.array, row_strat: np.array) -> np.array:
     """Assumes the matrix is the utility matrix of column player."""
-    return best_response_to_row_player(-matrix, row_strat)
+    return best_response_to_row_player(matrix, row_strat)
 def best_response_to_col_player_in_zerosum(matrix: np.array, col_strat: np.array) -> np.array:
     """Assumes the matrix is the utility matrix of column player."""
-    return best_response_to_col_player(matrix, col_strat)
+    return best_response_to_col_player(-matrix, col_strat)
 
 
 def best_response_to_row_player(matrix: np.array, row_strat: np.array) -> np.array:
@@ -52,7 +52,7 @@ def best_response_strat(matrix: np.array, row_strat=None, col_strat=None) -> np.
         raise NotImplementedError("Both strategies are set to None.")
 
     n = matrix.shape[axis]
-    print(expected_payoffs)
+    # print(expected_payoffs)
     max_payoff = np.argmax(expected_payoffs, axis=axis)
     return create_pure_strategy(len=n, index=max_payoff)
 

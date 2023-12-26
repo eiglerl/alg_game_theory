@@ -210,8 +210,8 @@ def regret_matching(regrets: np.array):
     
     return positive_regrets / total_positive
 
-def update_regrets(regrets: np.array, rewards: np.array, cumulative_reward: float):
-    regrets += rewards - cumulative_reward
+def update_regrets(regrets: np.array, rewards: np.array, current_strat_reward: float):
+    regrets += rewards - current_strat_reward
     
 
 # def best_response_to_last_strat(past_opponent_strategies: list):

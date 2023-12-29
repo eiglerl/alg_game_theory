@@ -78,12 +78,18 @@ class ExtensiveFormGame:
             
             self.calculate_probabilities(strategies, child, prob*prob_of_action)
     
+    def get_node_by_history(self, history):
+        node = self.root
+        for a in history:
+            node = node.children[a]
+        return node
+    
     def calculate_player_values(self, strategies, node: Node =None):
         node = node or self.root
         
-        return self._calculate_values_rec(strategies, node)
+        return self.history_value(strategies, node)
         
-    def _calculate_values_rec(self, strategies, node: Node):
+    def history_value(self, strategies, node: Node):
         if node.is_terminal():
             return self.matrix[node.history]
         
@@ -93,12 +99,14 @@ class ExtensiveFormGame:
         values = {p: 0 for p in self.players}
 
         for action in node.actions():
-            a_values = self._calculate_values_rec(strategies, node.children[action])
-            
+            a_values = self.history_action_value(strategies, node, action)
             for p in self.players:
                 values[p] += a_values[p] * strategies[player][information_set][action]
-                
+
         return values
+    
+    def history_action_value(self, strategies, node, action):
+        return self.history_value(strategies, node.children[action])
     
     def find_all_histories(self, node: Node = None, history=[]):
         node = node or self.root
@@ -116,6 +124,45 @@ class ExtensiveFormGame:
 
         return histories
     
+    def average_strategy(self, strategies):
+        player = next(iter(strategies[0]))
+        avg_strat = {player: {}}
+        for information_set in strategies[0][player].keys():
+            avg_strat[player][information_set] = {}
+            for action in strategies[0][player][information_set].keys():
+                avg_strat[player][information_set][action] = 0
+        # print(avg_strat)
+        self._avg_strat_dfs(self.root, strategies, avg_strat, player)
+        
+        # normalize
+        for k in avg_strat[player].keys():
+            total_sum = sum(avg_strat[player][k].values())
+            for action in avg_strat[player][k]:
+                avg_strat[player][k][action] /= total_sum
+        
+        return avg_strat
+    
+    def _avg_strat_dfs(self, node: Node, strategies, avg_strat, player):
+        if node.is_terminal():
+            return
+        
+        if node.player != player:
+            for action in node.actions():
+                self._avg_strat_dfs(node.children[action], strategies, avg_strat, player)
+            return
+        
+        information_set = node.information_set
+        reach_prob = self.calculate_reach_probability(avg_strat, node.history)
+        strat_reach_prob = [self.calculate_reach_probability(s, node.history) for s in strategies]
+        
+        for action in node.actions():
+            for i, strat in enumerate(strategies):
+                avg_strat[player][information_set][action] += strat_reach_prob[i] * strat[player][information_set][action]
+
+            self._avg_strat_dfs(node.children[action], strategies, avg_strat, player)
+                
+        
+                
     def best_response(self, strategies, node: Node = None):
         assert len(strategies.keys()) == len(self.players) - 1
         player = next(p for p in self.players if p not in strategies)
@@ -155,31 +202,9 @@ class ExtensiveFormGame:
 
         return max(action_values.values())
         
-        # if node.information_set in best_response:
-        #     return br_values[node.information_set]
-        
-        # if node.player == player:
-        #     best_response[node.information_set] = {}
-        #     values = {}
-        #     nodes = self.get_nodes_in_infoset(node.information_set)
-        #     for next_node in nodes:
-        #         if next_node.player != player:
-        #             continue
-                
-        #         for action in next_node.actions():
-        #             values[action] = self._find_best_response(strategies, next_node.children[action], best_response, br_values, player)
-        #             best_response[node.information_set][action] = 0
-        #     best_response[node.information_set][max(values, key=br_values.get)] = 1
-        #     br_values[node.information_set] = max(values.values())
-        # else:
-        #     for action in node.actions():
-        #         values[action] = \
-        #             strategies[node.player][node.information_set][action] * \
-        #             self._find_best_response(strategies, node.children[action], best_response, br_values, player)
-        # return max(values.values())
 
 
-
+    
 
 def rps() -> ExtensiveFormGame:
 
@@ -213,7 +238,7 @@ def rps() -> ExtensiveFormGame:
         "SP": {"Player1": 1, "Player2": -1},
         "SS": {"Player1": 0, "Player2": 0},
     }
-    tree = ExtensiveFormGame(["Player1", "Player2"], root, matrix)
+    tree = ExtensiveFormGame(["Player1", "Player2"], [], root, matrix)
     return tree
 
 def kuhn_poker():
@@ -306,6 +331,31 @@ def kuhn_poker():
     return tree    
     
 
+def avg_example():
+    root = Node("Player1", "", {
+        "A": Node("Player2", "A", {
+            "1": Node("", "A1"),
+            "2": Node("", "A2")
+        }),
+        "B": Node("Player2", "B", {
+            "1": Node("", "B1"),
+            "2": Node("Player1", "B2", {
+                "A": Node("", "B2A"),
+                "B": Node("", "B2B")
+            })
+        })
+    })
+    
+    matrix = {
+        "A1": {"Player1": -2, "Player2": 2},
+        "A2": {"Player1": 1, "Player2": -1},
+        "B1": {"Player1": 1, "Player2": -1},
+        "B2A": {"Player1": 4, "Player2": -4},
+        "B2B": {"Player1": 0, "Player2": 0},
+    }
+    tree = ExtensiveFormGame(["Player1", "Player2"], [], root, matrix)
+    return tree
+
 # tree = rps()
 # opponent_strategies = {
 #     "Player1": {
@@ -316,7 +366,7 @@ def kuhn_poker():
 #         }
 #     }
 # }
-tree = kuhn_poker()
+# tree = kuhn_poker()
 # strategies = {
 #     "Player1": {
 #         "A": {
@@ -370,63 +420,67 @@ tree = kuhn_poker()
 #     }
 # }
 
-strategies = {
-    "Player1": {
-        "A": {
-            "C": 0.9,
-            "B": 0.1
-        },
-        "K": {
-            "C": 0.1,
-            "B": 0.9
-        },
-        "KCB":{
-            "C": 0.4,
-            "F": 0.6
-        },
-        "ACB":{
-            "C": 0.3,
-            "F": 0.7
-        }
-    },
-    "Player2": {
-        "AB": {
-            "C": 0.5,
-            "F": 0.5
-        },
-        "AC": {
-            "C": 0.4,
-            "B": 0.6
-        },
-        "KB": {
-            "C": 0.7,
-            "F": 0.3
-        },
-        "KC": {
-            "C": 0.2,
-            "B": 0.8
-        },
-    },
-    "Chance": {
-        "": {
-            "K": 0.5,
-            "A": 0.5
-        },
-        "A": {
-            "K": 0.5,
-            "A": 0.5
-        },
-        "K": {
-            "K": 0.5,
-            "A": 0.5
-        }
-    }
-}
+# strategies2 = {
+#     "Player1": {
+#         "A": {
+#             "C": 0.9,
+#             "B": 0.1
+#         },
+#         "K": {
+#             "C": 0.1,
+#             "B": 0.9
+#         },
+#         "KCB":{
+#             "C": 0.4,
+#             "F": 0.6
+#         },
+#         "ACB":{
+#             "C": 0.3,
+#             "F": 0.7
+#         }
+#     },
+#     "Player2": {
+#         "AB": {
+#             "C": 0.5,
+#             "F": 0.5
+#         },
+#         "AC": {
+#             "C": 0.4,
+#             "B": 0.6
+#         },
+#         "KB": {
+#             "C": 0.7,
+#             "F": 0.3
+#         },
+#         "KC": {
+#             "C": 0.2,
+#             "B": 0.8
+#         },
+#     },
+#     "Chance": {
+#         "": {
+#             "K": 0.5,
+#             "A": 0.5
+#         },
+#         "A": {
+#             "K": 0.5,
+#             "A": 0.5
+#         },
+#         "K": {
+#             "K": 0.5,
+#             "A": 0.5
+#         }
+#     }
+# }
+
+# list_strat = [{"Player1": strategies["Player1"]}, {"Player1": strategies2["Player1"]}]
 
 # print(tree.find_all_histories())
 # tree.print_tree()
-values = tree.calculate_player_values(strategies)
-print(values)
+# values = tree.calculate_player_values(strategies)
+# print(values)
+# avg_strat = tree.average_strategy(list_strat)
+# print(avg_strat)
 
 # prob = tree.calculate_reach_probability(opponent_strategies, ('R', 'R')) 
 # print(prob)
@@ -455,3 +509,28 @@ print(values)
 # print(val)
 # histories = tree.find_all_histories()
 # print(sorted(histories))
+
+
+tree = avg_example()
+list_strat = [
+    {"Player1":
+        {
+            "": {"A": 0.2, "B": 0.8},
+            "B2": {"A": 0.8, "B": 0.2}
+        }
+    },
+    {"Player1":
+        {
+            "": {"A": 0.8, "B": 0.2},
+            "B2": {"A": 0.2, "B": 0.8}
+        }
+    },
+]
+
+print("Strat1")
+print(list_strat[0])
+print("Strat2")
+print(list_strat[1])
+avg_strat = tree.average_strategy(list_strat)
+print("avg strat")
+print(avg_strat)

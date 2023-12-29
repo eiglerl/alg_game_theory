@@ -149,7 +149,7 @@ def regret_minimization(matrix1: np.array, matrix2: np.array, iterations: int, r
     regrets_row = np.zeros(matrix1.shape[0])
     regrets_col = np.zeros(matrix2.shape[1])
     
-    row_strategies, row_reward_vectors, exploitabilities = [], [], []
+    row_strategies, row_reward_vectors = [], []
     col_strategies, col_reward_vectors = [], []
     row_regrets_storing, col_regrets_storing = [], []
     
@@ -176,8 +176,6 @@ def regret_minimization(matrix1: np.array, matrix2: np.array, iterations: int, r
         cumulative_reward_col += current_reward_col
         
         # update regrets
-        # update_regrets(regrets_row, reward_row, cumulative_reward_row)
-        # update_regrets(regrets_col, reward_col, cumulative_reward_col)
         update_regrets(regrets_row, reward_row, current_reward_row)
         update_regrets(regrets_col, reward_col, current_reward_col)
         
@@ -186,12 +184,12 @@ def regret_minimization(matrix1: np.array, matrix2: np.array, iterations: int, r
         col_regrets_storing.append(reward_col - cumulative_reward_col)
         
         # calculate exploitability
-        avg_row = average_strat(row_strategies)
-        avg_col = average_strat(col_strategies)
-        expl = calculate_exploitability(matrix1, matrix2, avg_row, avg_col)
-        exploitabilities.append(expl)
+        # avg_row = average_strat(row_strategies)
+        # avg_col = average_strat(col_strategies)
+        # expl = calculate_exploitability(matrix1, matrix2, avg_row, avg_col)
+        # exploitabilities.append(expl)
         
-    return row_strategies, col_strategies, exploitabilities, regrets_row, regrets_col, row_regrets_storing, col_regrets_storing
+    return row_strategies, col_strategies, regrets_row, regrets_col, row_regrets_storing, col_regrets_storing
         
 
 def reward_vector_row(matrix: np.array, col_strategy: np.array) -> np.array:
@@ -263,8 +261,22 @@ row_strategy = np.array([0.3, 0.5, 0.2])
 # reward = reward_vector_col(matrix, row_strategy)
 # print(reward)
 
-rows, cols, expl, cum_regret_row, cum_regret_col, reg_row, reg_col = regret_minimization(m1, m2, 50, regret_matching)
-plot_exploitability(expl)
-# print(average_strat(rows))
-print(rows)
-print(expl[-1])
+rows, cols, cum_regret_row, cum_regret_col, reg_row, reg_col = regret_minimization(m1, m2, 1000, regret_matching)
+
+explotability_avg, explotability = [], []
+
+for i in range(len(rows)):
+    row_strat, col_strat = rows[i], cols[i]
+    avg_row, avg_col = average_strat(rows[0:i+1]), average_strat(cols[0:i+1])
+    
+    explotability.append(calculate_exploitability(m1, m2, row_strat, col_strat))
+    explotability_avg.append(calculate_exploitability(m1, m2, avg_row, avg_col))
+
+# plot_two_exploitability(explotability_avg, explotability)
+print(average_strat(rows))
+print(average_strat(cols))
+# print(rows[-1])
+# print(cols[-1])
+v1, v2 = compute_game_value(m1, m2, average_strat(rows), average_strat(cols))
+print(v1, v2)
+# print(expl[-1])

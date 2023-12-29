@@ -21,10 +21,10 @@ def compute_non_zero_sum_game_value(matrix1, matrix2, p1_strat, p2_strat):
 #     return best_response
 
 def best_response_to_row_player_in_zerosum(matrix: np.array, row_strat: np.array) -> np.array:
-    """Assumes the matrix is the utility matrix of column player."""
+    """Assumes the matrix is the utility matrix of row player."""
     return best_response_to_row_player(matrix, row_strat)
 def best_response_to_col_player_in_zerosum(matrix: np.array, col_strat: np.array) -> np.array:
-    """Assumes the matrix is the utility matrix of column player."""
+    """Assumes the matrix is the utility matrix of row player."""
     return best_response_to_col_player(-matrix, col_strat)
 
 
@@ -34,7 +34,7 @@ def best_response_to_row_player(matrix: np.array, row_strat: np.array) -> np.arr
 def best_response_to_col_player(matrix: np.array, col_strat: np.array) -> np.array:
     return best_response_strat(matrix, row_strat=None, col_strat=col_strat)
 
-def best_response_strat(matrix: np.array, row_strat=None, col_strat=None) -> np.array:
+def best_response_strat(matrix: np.array, row_strat:np.array =None, col_strat:np.array =None) -> np.array:
     """
     Get best response to either row or column player. Only set row_strat OR col_strat.
     Should not be called. Use best_response_to_row_player or best_response_to_col_player instead.
@@ -43,9 +43,11 @@ def best_response_strat(matrix: np.array, row_strat=None, col_strat=None) -> np.
     if row_strat is not None and col_strat is not None:
         raise NotImplementedError("Both strategies are set.")
     elif row_strat is not None:
+        check_strat_is_row_strat(row_strat)
         expected_payoffs = row_strat @ matrix
         axis = 1
     elif col_strat is not None:
+        check_strat_is_col_strat(col_strat)
         expected_payoffs = matrix @ col_strat
         axis = 0
     else:
@@ -56,7 +58,7 @@ def best_response_strat(matrix: np.array, row_strat=None, col_strat=None) -> np.
     max_payoff = np.argmax(expected_payoffs, axis=axis)
     return create_pure_strategy(len=n, index=max_payoff)
 
-def best_response_zerosum(matrix, strat):
+def best_response_zerosum(matrix: np.array, strat: np.array):
     if strat.shape[1] == 1:
         return best_response_to_col_player_in_zerosum(matrix, col_strat=strat)
     else:
@@ -104,6 +106,12 @@ def iterated_removal_of_dominated_strategies(matrix1, matrix2):
 
     return temp1, temp2
 
+
+def check_strat_is_row_strat(strat: np.array):
+    assert len(strat.shape) == 2 and strat.shape[0] == 1
+    
+def check_strat_is_col_strat(strat: np.array):
+    assert len(strat.shape) == 2 and strat.shape[1] == 1
 
 # matrix1 = np.array([[13,1,7], [4,3,6], [-1,2,8]])
 # matrix2 = np.array([[3,4,3], [1,3,2], [9,8,-1]])

@@ -1,14 +1,19 @@
 from typing import List, Optional
 from scipy.optimize import linprog
 import numpy as np
-import week1 as week1
-# from . import week1
 import matplotlib.pyplot as plt
+
+# FOR TESTING
+# from libs import week1
+
+# FOR RUNNING
+import week1
+
 
 def verify_support_one_side(matrix: np.array, support_row: List, support_col: List) -> Optional[List]:
     """Tries to see whether the column player can mix their strategies in the support so that the values of the row player are best-responding"""
     submatrix = matrix[support_row][:, support_col]
-    # print(f"submatrix {submatrix}")
+    print(f"submatrix {submatrix}")
     # print(f"submatrix.T {submatrix.T}")
     result = verify_matrix(submatrix)
     if result.success:
@@ -23,7 +28,7 @@ def verify_support_one_side(matrix: np.array, support_row: List, support_col: Li
     # 1*-U_2 2*p_1 1*p_2 = 0
     # 0 1*p_1 1*p_2 = 1
 
-    
+
     # print(f"submatrix: \n{submatrix}")
     # print(f"submatrix.T: \n{submatrix.T}")
     # add utility
@@ -57,8 +62,8 @@ def verify_support_one_side(matrix: np.array, support_row: List, support_col: Li
         return result.x[1:]
             # print("more than 0")
         # print(f"utility: {result.x[0]}")
-        
-    
+
+
         return None
 
     # print(matrix)
@@ -108,7 +113,7 @@ def nash_equlibrium_for_supports(matrix: np.array):
         res = verify_support_one_side(matrix=matrix, support_row=row, support_col=col)
         if res is not None and len(row) > 1 and len(col) > 1:
             results[f"row: {row}, col: {col}"] = res
-    
+
     return results
 
 
@@ -122,7 +127,7 @@ def best_response_value_function(matrix: np.array, step_size: float):
         # TODO: weird graph
         p1_val, p2_val = week1.compute_non_zero_sum_game_value(matrix, -matrix, new_strat, br)
         vals.append(p1_val)
-    
+
     plt.scatter(steps, vals, s=10)
     plt.show()
 
@@ -145,7 +150,7 @@ matrix_p2 = np.array([[0, 1, -10],
 result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])
 print(f"result: {result}")
 print('------------')
-result = verify_support_one_side(matrix = matrix_p1.T, support_row=[0, 1], support_col = [0, 1, 2])
+result = verify_support_one_side(matrix = matrix_p1, support_row=[0, 1, 2], support_col = [0, 1])
 print(f"result: {result}")
 
 # enumerate_all_supports(matrix)

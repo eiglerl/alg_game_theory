@@ -1,4 +1,6 @@
 import numpy as np
+import matplotlib.pyplot as plt
+
 
 class Node:
     def __init__(self, player, information_set, children=None, history=None):
@@ -164,47 +166,143 @@ class ExtensiveFormGame:
         
                 
     def best_response(self, strategies, node: Node = None):
-        assert len(strategies.keys()) == len(self.players) - 1
+        assert len(strategies.keys()) == len(self.players) + len(self.chance) - 1
         player = next(p for p in self.players if p not in strategies)
         node = node or self.root
         
-        best_response = {}
+        best_response = {player: {}}
         self._find_best_response(strategies, node, best_response, player)
         
         return best_response
     
-    def _find_best_response(self, strategies, node: Node, best_response: dict, player, br_values: dict = {}):
+    def _find_best_response(self, strategies, node: Node, best_response: dict, player, information_set_values: dict = {}):
         if node.is_terminal():
-            return self.matrix[node.information_set][player]
+            return self.matrix[node.history][player]
         
         action_values = {}
+
         if node.player == player:
-            nodes = self.get_nodes_in_infoset(node.information_set, player)
-            reach_probabilities = [self.calculate_reach_probability(strategies, n.history) for n in nodes]
-            action_values = {}
-            best_response[node.information_set] = {}
+            information_set = node.information_set
+            best_response[player][information_set] = {}
+            # if information_set in information_set_values:
+            #     return information_set_values[information_set]
+            
+            nodes_in_information_set = self.get_nodes_in_infoset(information_set, player)
+        
             for action in node.actions():
                 action_values[action] = 0
-                best_response[node.information_set][action] = 0
-                
-                for i, possible_node in enumerate(nodes):
-                    action_values[action] += \
-                        reach_probabilities[i] * \
-                        self._find_best_response(strategies, possible_node.children[action], best_response, player, br_values)
-                # action_values.append(self._find_best_response(strategies, node.child, best_response, player, br_values))
-            
-            best_response[node.information_set][max(action_values, key=action_values.get)] = 1
+                best_response[player][information_set][action] = 0
+                for possible_node in nodes_in_information_set:
+                    action_val = \
+                        self.calculate_reach_probability(strategies, possible_node.history) *\
+                        self._find_best_response(strategies, possible_node.children[action], best_response, player, information_set_values)
+                    # print(f"history {possible_node.history}, action {action}, val {action_val}")
+                    action_values[action] += action_val
+            best_response[player][information_set][max(action_values, key=action_values.get)] = 1
+
         else:
             for action in node.actions():
                 action_values[action] = \
                     strategies[node.player][node.information_set][action] * \
-                    self._find_best_response(strategies, node.children[action], best_response, player, br_values)
+                    self._find_best_response(strategies, node.children[action], best_response, player, information_set_values)
 
         return max(action_values.values())
+    
+    def calculate_deltas(self, strategies):
+        game_values = self.calculate_player_values(strategies)
+        
+        best_response_utility = {}
+        for p in self.players:
+            without_p = {key: val for key, val in strategies.items() if key != p}
+            br_p = self.best_response(without_p)
+            without_p[p] = br_p[p]
+            
+            best_response_utility[p] = self.calculate_player_values(without_p)[p]
+        
+        deltas = {p: best_response_utility[p] - game_values[p] for p in self.players}
+        return deltas
+    
+    def calculate_nash_conv(self, strategies) -> float:
+        return sum(self.calculate_deltas(strategies).values())
+    
+    def calculate_exploitability(self, strategies) -> float:
+        return self.calculate_nash_conv(strategies)/len(self.players)
+    
+    def uniform_strat_for_player(self, player):
+        strat = {player: {}}
+        all_infosets = self.get_infosets()
+        for infoset, nodes in all_infosets.items():
+            nodes = [n for n in nodes if n.player == player]
+            if len(nodes) == 0:
+                continue
+            node = nodes[0]
+            actions = node.actions()
+            count = len(actions)
+            strat[player][infoset] = {a: 1/count for a in actions}
+        return strat
+    
+    def self_play(self, iterations = 50):
+        # all_strategies = {p: [self.uniform_strat_for_player(p)] for p in self.players}
+        p1_strategies = [self.uniform_strat_for_player(self.players[0])]
+        p2_strategies = [self.uniform_strat_for_player(self.players[1])]
+        chance_strategies = {c: self.uniform_strat_for_player(c)[c] for c in self.chance}
+        
+        exploitabilities = []
+        
+        for i in range(iterations):
+            p1_strat = p1_strategies[-1]
+            p1_strat.update(chance_strategies)
+            
+            p2_strat = p2_strategies[-1]
+            p2_strat.update(chance_strategies)
+            
+            br_to_p1 = self.best_response(p1_strat)
+            br_to_p2 = self.best_response(p2_strat)
+            
+            p1_strategies.append(br_to_p2)
+            p2_strategies.append(br_to_p1)
+        
+        
+            strategies ={
+                self.players[0]: self.average_strategy(p1_strategies)[self.players[0]],
+                self.players[1]: self.average_strategy(p2_strategies)[self.players[1]],
+            }
+            for c in self.chance:
+                strategies[c] = chance_strategies[c]
+            exploitabilities.append(self.calculate_exploitability(strategies))
+            
+        return p1_strategies, p2_strategies, exploitabilities
+        # action_values = {}
+        # if node.player == player:
+        #     nodes = self.get_nodes_in_infoset(node.information_set, player)
+        #     reach_probabilities = [self.calculate_reach_probability(strategies, n.history) for n in nodes]
+        #     action_values = {}
+        #     best_response[node.information_set] = {}
+        #     for action in node.actions():
+        #         action_values[action] = 0
+        #         best_response[node.information_set][action] = 0
+                
+        #         for i, possible_node in enumerate(nodes):
+        #             action_values[action] += \
+        #                 reach_probabilities[i] * \
+        #                 self._find_best_response(strategies, possible_node.children[action], best_response, player, br_values)
+        #         # action_values.append(self._find_best_response(strategies, node.child, best_response, player, br_values))
+            
+        #     best_response[node.information_set][max(action_values, key=action_values.get)] = 1
+        # else:
+        #     for action in node.actions():
+        #         action_values[action] = \
+        #             strategies[node.player][node.information_set][action] * \
+        #             self._find_best_response(strategies, node.children[action], best_response, player, br_values)
+
+        # return max(action_values.values())
         
 
 
-    
+def plot_exploitability(exploitabilities: np.array):
+    plt.plot(list(range(len(exploitabilities))), exploitabilities)
+    plt.show()
+
 
 def rps() -> ExtensiveFormGame:
 
@@ -268,7 +366,7 @@ def kuhn_poker():
                     "B": Node("Player2", "AB", {
                         "C": Node("", "KABC"),
                         "F": Node("", "KABF")
-                    })
+                    }, "KAB")
                 }, "KA")
             }, "K"),
         
@@ -297,7 +395,7 @@ def kuhn_poker():
                     "B": Node("Player2", "AB", {
                         "C": Node("", "AABC"),
                         "F": Node("", "AABF")
-                    })
+                    }, "AAB")
                 }, "AA")
             }, "A")
     })
@@ -357,15 +455,72 @@ def avg_example():
     return tree
 
 # tree = rps()
+tree = kuhn_poker()
 # opponent_strategies = {
 #     "Player1": {
 #         "": {
-#             "R": 0.3,
-#             "P": 0.1,
-#             "S": 0.6
+#             "R": 0.4,
+#             "P": 0.5,
+#             "S": 0.1
 #         }
 #     }
 # }
+# br = tree.best_response(opponent_strategies)
+# print(br)
+# uniform = tree.uniform_strat_for_player("Player1")
+# print(uniform["Player1"])
+
+
+# strats = {"Player1": opponent_strategies["Player1"], "Player2": br["Player2"]}
+# deltas = tree.calculate_deltas(strats)
+# print(deltas)
+
+def pretty_print(strat, ind=''):
+    if isinstance(strat, dict):
+        for k in strat.keys():
+            print(f'{ind}{k}: ')#'+'{')
+            pretty_print(strat[k], ind=ind+'\t')
+            # print(f'{ind}'+'}')
+    else:
+        print(f'{ind}{strat}')
+
+if __name__=="__main__":
+
+    # p1, p2, expl = tree.self_play(iterations=20)
+    # pretty_print(tree.average_strategy(p1))
+    # pretty_print(tree.average_strategy(p2))
+    # plot_exploitability(expl)
+    strategies = {
+        "Player1": {
+            "A": {
+                "C": 0.9,
+                "B": 0.1
+            },
+            "ACB": {
+                "C": 0.9,
+                "F": 0.1
+            }
+        },
+        "Player2": {
+            "AC": {
+                "B": 0.7,
+                "C": 0.3
+            },
+            "AB": {
+                "C": 0.7,
+                "F": 0.3
+            }
+        },
+        "Chance": {
+            "": {
+                "A": 0.5,
+                "K": 0.5
+            }
+        }
+    }
+    print(strategies["Player1"])
+
+
 # tree = kuhn_poker()
 # strategies = {
 #     "Player1": {
@@ -484,8 +639,6 @@ def avg_example():
 
 # prob = tree.calculate_reach_probability(opponent_strategies, ('R', 'R')) 
 # print(prob)
-# br = tree.best_response(opponent_strategies)
-# print(br)
 # for k in tree.infosets.keys():
 #     print(f"{k}, len {len(tree.infosets[k])}")
 # strategies = {
@@ -511,26 +664,26 @@ def avg_example():
 # print(sorted(histories))
 
 
-tree = avg_example()
-list_strat = [
-    {"Player1":
-        {
-            "": {"A": 0.2, "B": 0.8},
-            "B2": {"A": 0.8, "B": 0.2}
-        }
-    },
-    {"Player1":
-        {
-            "": {"A": 0.8, "B": 0.2},
-            "B2": {"A": 0.2, "B": 0.8}
-        }
-    },
-]
+# tree = avg_example()
+# list_strat = [
+#     {"Player1":
+#         {
+#             "": {"A": 0.2, "B": 0.8},
+#             "B2": {"A": 0.8, "B": 0.2}
+#         }
+#     },
+#     {"Player1":
+#         {
+#             "": {"A": 0.8, "B": 0.2},
+#             "B2": {"A": 0.2, "B": 0.8}
+#         }
+#     },
+# ]
 
-print("Strat1")
-print(list_strat[0])
-print("Strat2")
-print(list_strat[1])
-avg_strat = tree.average_strategy(list_strat)
-print("avg strat")
-print(avg_strat)
+# print("Strat1")
+# print(list_strat[0])
+# print("Strat2")
+# print(list_strat[1])
+# avg_strat = tree.average_strategy(list_strat)
+# print("avg strat")
+# print(avg_strat)

@@ -199,14 +199,14 @@ class ExtensiveFormGame:
                     # print(f"history {possible_node.history}, action {action}, val {action_val}")
                     action_values[action] += action_val
             best_response[player][information_set][max(action_values, key=action_values.get)] = 1
-
+            return max(action_values.values())
         else:
             for action in node.actions():
                 action_values[action] = \
                     strategies[node.player][node.information_set][action] * \
                     self._find_best_response(strategies, node.children[action], best_response, player, information_set_values)
 
-        return max(action_values.values())
+            return sum(action_values.values())
     
     def calculate_deltas(self, strategies):
         game_values = self.calculate_player_values(strategies)
@@ -243,9 +243,11 @@ class ExtensiveFormGame:
     
     def self_play(self, iterations = 50):
         # all_strategies = {p: [self.uniform_strat_for_player(p)] for p in self.players}
+        chance_strategies = {c: self.uniform_strat_for_player(c)[c] for c in self.chance}
+        
         p1_strategies = [self.uniform_strat_for_player(self.players[0])]
         p2_strategies = [self.uniform_strat_for_player(self.players[1])]
-        chance_strategies = {c: self.uniform_strat_for_player(c)[c] for c in self.chance}
+        
         
         exploitabilities = []
         
@@ -257,7 +259,9 @@ class ExtensiveFormGame:
             p2_strat.update(chance_strategies)
             
             br_to_p1 = self.best_response(p1_strat)
+            br_to_p1.update(chance_strategies)
             br_to_p2 = self.best_response(p2_strat)
+            br_to_p2.update(chance_strategies)
             
             p1_strategies.append(br_to_p2)
             p2_strategies.append(br_to_p1)
@@ -486,39 +490,12 @@ def pretty_print(strat, ind=''):
 
 if __name__=="__main__":
 
-    # p1, p2, expl = tree.self_play(iterations=20)
-    # pretty_print(tree.average_strategy(p1))
-    # pretty_print(tree.average_strategy(p2))
-    # plot_exploitability(expl)
-    strategies = {
-        "Player1": {
-            "A": {
-                "C": 0.9,
-                "B": 0.1
-            },
-            "ACB": {
-                "C": 0.9,
-                "F": 0.1
-            }
-        },
-        "Player2": {
-            "AC": {
-                "B": 0.7,
-                "C": 0.3
-            },
-            "AB": {
-                "C": 0.7,
-                "F": 0.3
-            }
-        },
-        "Chance": {
-            "": {
-                "A": 0.5,
-                "K": 0.5
-            }
-        }
-    }
-    print(strategies["Player1"])
+    p1, p2, expl = tree.self_play(iterations=100)
+    pretty_print(tree.average_strategy(p1))
+    pretty_print(tree.average_strategy(p2))
+    print(f"\nLast exploitability {expl[-1]}")
+    plot_exploitability(expl)
+
 
 
 # tree = kuhn_poker()

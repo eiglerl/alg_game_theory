@@ -130,6 +130,7 @@ def test_reach_probability_simple_poker():
     probabilities = [game.calculate_reach_probability(strategies, h) for h in histories]
     assert np.allclose(probabilities, expected, atol=1e-8)
 
+
 def test_deltas_rps_simple():
     game = extensive_form_games.rps()
     p1_strat = {
@@ -271,4 +272,4 @@ def test_best_response_simple_poker():
     
     deltas = game.calculate_deltas(strategies)
     print(br)
-    
+    assert True

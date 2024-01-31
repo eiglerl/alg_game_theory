@@ -236,6 +236,7 @@ def test_best_response_rps():
     
     assert_dicts_equal(expected, br)
     
+    # NOT FINISHED
 def test_best_response_simple_poker():
     game = extensive_form_games.kuhn_poker()
     strategies = {
@@ -273,3 +274,36 @@ def test_best_response_simple_poker():
     deltas = game.calculate_deltas(strategies)
     print(br)
     assert True
+
+def test_regret_matching():
+    def check_uniform(strategy, player):
+        for k,v in strategy[player][''].items():
+            assert np.isclose(v, 1/3, atol=1e-8)
+
+    p="Player1"
+    
+    tree = extensive_form_games.rps()
+    regrets = tree._prepare_regrets(p)
+    strat = tree.regret_matching_cfr(regrets, p)
+    
+    # All zero
+    check_uniform(strat,p)
+    
+    # One negative
+    regrets['']["R"] = -1
+    strat = tree.regret_matching_cfr(regrets, p)
+    check_uniform(strat,p)
+    
+    # One positive
+    regrets['']["R"] = 150
+    strat = tree.regret_matching_cfr(regrets, p)
+    assert strat[p]['']["R"] == 1 and strat[p]['']["P"] == 0 and strat[p]['']["S"] == 0
+    
+    # All positive
+    regrets['']["R"] = 1
+    regrets['']["P"] = 2
+    regrets['']["S"] = 3
+    strat = tree.regret_matching_cfr(regrets, "Player1")
+    assert np.isclose(strat[p]['']["R"],1/6,atol=1e-8) and \
+        np.isclose(strat[p]['']["P"], 1/3, atol=1e-8) \
+            and np.isclose(strat[p]['']["S"],1/2,atol=1e-8)

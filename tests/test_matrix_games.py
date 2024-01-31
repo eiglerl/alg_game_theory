@@ -87,5 +87,19 @@ def test_deltas():
     assert delta_row == pytest.approx(0.12)
     assert delta_column == pytest.approx(0.68)
 
+def test_verify_given_support_using_lp():
+    matrix_p1 = np.array([[0, 0, -10],
+                          [1, -10, -10],
+                          [-10, -10, -10]])
+    matrix_p2 = np.array([[0, 1, -10],
+                          [0, -10, -10],
+                          [-10, -10, -10]])
 
+
+    result = matrix_games.verify_support(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])
+    assert np.allclose(result, [0.90909, 0.09090], rtol=1e-3)
+
+
+    # result = week2.verify_support_one_side(matrix = matrix_p2.T, support_row=[0, 1, 2], support_col = [0, 1])
+    # assert result is None
 

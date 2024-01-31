@@ -1,6 +1,9 @@
 import numpy as np
 from typing import List, Tuple, Callable
 import matplotlib.pyplot as plt
+from scipy.optimize import linprog
+from itertools import combinations
+from ortools.linear_solver import pywraplp
 
 def create_pure_strategy(n: int, a: int):
     assert n > 0 and a >= 0 and a < n 
@@ -212,6 +215,99 @@ def update_regrets(regrets: np.array, rewards: np.array, current_strat_reward: f
     regrets += rewards - current_strat_reward
     
 
+def verify_support(matrix: np.array, support_row: np.array, support_col: np.array):
+    submatrix = matrix[support_row][:, support_col]
+    result = verify_matrix(submatrix)
+    
+    if result.success:
+        return result.x
+    return None
+    
+def verify_matrix(matrix: np.array):
+    num_rows, num_cols = matrix.shape
+    
+    # A_eq = np.ones(shape=(1, num_rows + 1))
+    # A_eq[0, -1] = 0
+    
+    # b_eq = 1
+    
+    
+    # A_ub = np.hstack(
+    #     (-matrix.T, np.ones(shape=(num_cols, 1)))
+    # )
+    # b_ub = np.zeros(shape=(num_cols, 1))
+    
+    # c = np.zeros(shape=(num_rows + 1))
+    # c[-1] = -1
+    
+    # bounds = [(0, None) for _ in range(num_rows)] + [(None, None)]
+    
+    # res = linprog(
+    #     c=c,
+    #     A_ub=A_ub,
+    #     b_ub=b_ub,
+    #     A_eq=A_eq,
+    #     b_eq=b_eq,
+    #     bounds=bounds,
+    # )
+    
+    # return res
+    
+    # A_eq = np.hstack([np.array([[1] * num_cols]).T, matrix.T])
+    # A_eq = np.vstack([A_eq, [0] + [1] * num_rows])
+    
+    A_ub = np.hstack([np.array([[1] * num_cols]).T, -matrix.T])
+    A_eq = np.ones(shape=(1, num_rows + 1))
+    A_eq[0, 0] = 0
+    
+    # b_eq = [0] * num_cols + [1]
+    b_ub = [0] * num_cols 
+    b_eq = [1]
+    
+    c = [-1] + [0] * num_rows 
+
+    bounds = [(None, None)] + [(0.,None) for _ in range(num_rows)]
+
+    return linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+    # # A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
+    # # A_eq = np.vstack([A_eq, [0]+[1]*num_cols])
+    # A_ub = np.hstack([np.array([[1] * num_rows]).T, -matrix])
+    # A_eq = np.ones(shape=(1, num_cols + 1))
+    # A_eq[0, 0] = 0
+    
+    # # b_eq = [0] * num_rows + [1]
+    # b_ub = [0] * num_rows 
+    # b_eq = [1]
+
+    # c = [-1] + [0] * num_cols
+    
+    # bounds = [(None, None)] + [(0,1) for _ in range(num_cols)]
+    
+    # return linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
+
+def support_enumeration(matrix: np.array):
+    num_rows, num_cols = matrix.shape
+
+    # Generate all non-empty subsets
+    all_row_subsets = [np.array(subset) for i in range(1, num_rows + 1)
+                for subset in combinations(range(num_rows), i)]
+    all_col_subsets = [np.array(subset) for i in range(1, num_cols + 1)
+                for subset in combinations(range(num_cols), i)]
+    
+    eq = []
+    for r in all_row_subsets:
+        for c in all_col_subsets:
+            res = verify_support(matrix, r, c)
+            eq.append((res, r, c))
+    return eq
+
+def find_correlated_eq(matrix1: np.array, matrix2: np.array):
+    A_ub = matrix1.reshape((1,-1))
+    print(A_ub)
+    
+    
+
 # def best_response_to_last_strat(past_opponent_strategies: list):
     
 # matrix = rps_matrix()
@@ -231,13 +327,51 @@ def update_regrets(regrets: np.array, rewards: np.array, current_strat_reward: f
 
 # m1 = rps_matrix()
 # m2 = -m1
-m1, m2 = game_of_chicken()
+# m1, m2 = game_of_chicken()
 # m1 = np.array([[1, 1, 1], [0, 0, 0], [0, 0, 0]])
 # m2 = -rps_matrix()
 
 # row_strategy = np.array([0.1, 0.2, 0.7])
-column_strategy = np.array([0.3, 0.2, 0.5])
-row_strategy = np.array([0.3, 0.5, 0.2])
+# column_strategy = np.array([0.3, 0.2, 0.5])
+# row_strategy = np.array([0.3, 0.5, 0.2])
+
+if __name__=="__main__":
+    matrix_p1 = np.array([[0, -1, 1],
+                        [1, 0, -1],
+                        [-1, 1, 0]])
+    # matrix_p1 = np.array([[0, 0, -10],
+    #                     [1, -10, -10],
+    #                     [-10, -10, -10]])
+    
+    pd1 = np.array(
+        [[-2, 0],
+        [-3, -1]])
+    pd2 = np.array(
+        [[-2,-3],
+        [0,-1]]
+    )
+
+    x = find_correlated_eq(pd1, pd2)
+    print(x)
+    print("---------")
+    
+    supp_r = [[0,1]]
+    supp_c = [[0,1,2]]
+    
+    for r in supp_r:
+        for c in supp_c:
+            x = verify_support(matrix_p1, r, c)
+            print(f"{r}, {c} - {x}")
+            
+    
+
+        
+    
+    # eq = support_enumeration(matrix_p1.T)
+    
+    # print("---------------")
+    # for x in eq:
+    #     print(f"{x[0]}, row {x[1]}, col {x[2]}")
 
 # delta_row, delta_column = calculate_deltas(matrix, -matrix, row_strategy, column_strategy)
 
@@ -261,22 +395,22 @@ row_strategy = np.array([0.3, 0.5, 0.2])
 # reward = reward_vector_col(matrix, row_strategy)
 # print(reward)
 
-rows, cols, cum_regret_row, cum_regret_col, reg_row, reg_col = regret_minimization(m1, m2, 1000, regret_matching)
+# rows, cols, cum_regret_row, cum_regret_col, reg_row, reg_col = regret_minimization(m1, m2, 1000, regret_matching)
 
-explotability_avg, explotability = [], []
+# explotability_avg, explotability = [], []
 
-for i in range(len(rows)):
-    row_strat, col_strat = rows[i], cols[i]
-    avg_row, avg_col = average_strat(rows[0:i+1]), average_strat(cols[0:i+1])
+# for i in range(len(rows)):
+#     row_strat, col_strat = rows[i], cols[i]
+#     avg_row, avg_col = average_strat(rows[0:i+1]), average_strat(cols[0:i+1])
     
-    explotability.append(calculate_exploitability(m1, m2, row_strat, col_strat))
-    explotability_avg.append(calculate_exploitability(m1, m2, avg_row, avg_col))
+#     explotability.append(calculate_exploitability(m1, m2, row_strat, col_strat))
+#     explotability_avg.append(calculate_exploitability(m1, m2, avg_row, avg_col))
 
-# plot_two_exploitability(explotability_avg, explotability)
-print(average_strat(rows))
-print(average_strat(cols))
-# print(rows[-1])
-# print(cols[-1])
-v1, v2 = compute_game_value(m1, m2, average_strat(rows), average_strat(cols))
-print(v1, v2)
+# # plot_two_exploitability(explotability_avg, explotability)
+# print(average_strat(rows))
+# print(average_strat(cols))
+# # print(rows[-1])
+# # print(cols[-1])
+# v1, v2 = compute_game_value(m1, m2, average_strat(rows), average_strat(cols))
+# print(v1, v2)
 # print(expl[-1])

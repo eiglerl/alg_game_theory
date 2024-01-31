@@ -5,6 +5,7 @@ from scipy.optimize import linprog
 from itertools import combinations
 from ortools.linear_solver import pywraplp
 
+# Strategy where action a is played with probability 1
 def create_pure_strategy(n: int, a: int):
     assert n > 0 and a >= 0 and a < n 
     
@@ -12,15 +13,19 @@ def create_pure_strategy(n: int, a: int):
     strat[a] = 1
     return strat
 
+# Strategy where each action has probability 1/(number of actions)
 def create_uniform_strategy(n: int):
     return np.array([1/n for _ in range(n)])
 
+# Probability distribution over possible pairs of actions
 def create_prob_table(strat1: np.array, strat2: np.array):
     return np.outer(strat1,strat2)
     
+# Rock-Paper-Scisors matrix for player 1
 def rps_matrix():
     return np.array([[0, 1, -1], [-1, 0, 1], [1, -1, 0]])
 
+# Game of chicken, two matrices
 def game_of_chicken():
     return np.array([[0,-1], [1,-10]]), np.array([[0,1],[-1,-10]])
 
@@ -45,8 +50,10 @@ def best_response_to_column_player(matrix: np.array, col_strategy: np.array):
     return create_pure_strategy(matrix.shape[0], a)
 
 def compute_game_value(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array):
+    # Find probability distribution 
     prob = create_prob_table(row, col)
     
+    # Calculate utilities with the given probability distribution
     u1 = np.sum(matrix1 * prob)
     u2 = np.sum(matrix2 * prob)
     
@@ -58,6 +65,7 @@ def compute_zerosum_game_value(matrix: np.array, row: np.array, col: np.array):
 def best_response_value_function(matrix: np.array, step_size: float):
     import matplotlib.pyplot as plt
 
+    # matrix 2xN
     steps = np.arange(0, 1 + step_size, step_size)
     vals = []
     for step in steps:
@@ -71,10 +79,12 @@ def best_response_value_function(matrix: np.array, step_size: float):
     plt.show()
 
 def average_strat(strats: list):
+    # Average strategy as sum of probabilities
     avg_strat = np.zeros(len(strats[0]))
     for strat in strats:
         avg_strat += strat
     
+    # And normalized
     avg_strat /= sum(avg_strat)
     return avg_strat
 
@@ -97,21 +107,22 @@ def best_reponse_to_last_col_strat(matrix: np.array, past_col_strategies: list):
 def self_play(matrix1: np.array, matrix2: np.array, iterations: int,
             strat_generator_for_row: Callable[[np.array, List[np.array]], np.array],
             strat_generator_for_col: Callable[[np.array, List[np.array]], np.array]) -> Tuple[list, list]:
+    # Lists of strategies and exploitabilities
     row_strategies, col_strategies, exploitabilities = [], [], []
     
-    # start with uniform strategies
+    # Start with uniform strategies
     row_strategies.append(create_uniform_strategy(matrix1.shape[0]))
     col_strategies.append(create_uniform_strategy(matrix2.shape[1]))
     
     for i in range(iterations):
-        # create new strategies
+        # Create new strategies
         new_row_strat = strat_generator_for_row(matrix1, col_strategies)
         new_col_strat = strat_generator_for_col(matrix2, row_strategies)
                 
         row_strategies.append(new_row_strat)
         col_strategies.append(new_col_strat)
         
-        # calculate exploitability
+        # Calculate exploitability
         row = average_strat(row_strategies)
         col = average_strat(col_strategies)
         exploitabilities.append(calculate_exploitability(matrix1, matrix2, row, col))
@@ -121,6 +132,7 @@ def self_play(matrix1: np.array, matrix2: np.array, iterations: int,
 
 
 def calculate_deltas(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array) -> np.array:
+    # delta_i = u_i(br to -i, -i) - u_i(pi)
     u_row, u_col = compute_game_value(matrix1, matrix2, row, col)
     
     br_to_col = best_response_to_column_player(matrix1, col)
@@ -148,7 +160,7 @@ def plot_two_exploitability(expl1: np.array, expl2: np.array):
 
 
 def regret_minimization(matrix1: np.array, matrix2: np.array, iterations: int, regret_matching_alg: Callable[[np.array], np.array]):
-    # prepare arrays to store regrets
+    # Prepare arrays to store regrets
     regrets_row = np.zeros(matrix1.shape[0])
     regrets_col = np.zeros(matrix2.shape[1])
     

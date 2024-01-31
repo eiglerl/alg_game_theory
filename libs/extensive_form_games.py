@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import copy
 
 class Node:
     def __init__(self, player, information_set, children=None, history=None):
@@ -23,6 +23,7 @@ class ExtensiveFormGame:
         self.root = root
         self.matrix = matrix
         self.infosets = self._prepare_infosets()
+        self.actions_in_infoset = self._prepare_actions_in_infosets()
     
     def get_infosets(self) -> dict:
         return self.infosets
@@ -30,8 +31,8 @@ class ExtensiveFormGame:
     def get_nodes_in_infoset(self, infoset, player=None) -> set:
         if player is not None:
             return set(n for n in self.infosets[infoset] if n.player == player)
-        return self.infosets[infoset]
-    
+        return self.infosets[infoset] 
+        
     def print_tree(self, node: Node = None, indent=""):
         node = node or self.root
         value = f" {self.matrix[node.information_set]}" if node.information_set in self.matrix else ""
@@ -53,6 +54,12 @@ class ExtensiveFormGame:
         for k, child in node.children.items():
             self._dfs_infosets(child, infosets)
     
+    def _prepare_actions_in_infosets(self):
+        actions_in_infoset = {}
+        for infoset in self.infosets:
+            actions_in_infoset[infoset] = next(iter(self.get_nodes_in_infoset(infoset))).actions()
+        return actions_in_infoset
+        
     def calculate_reach_probability(self, strategies, history):
         node = self.root
         prob = 1
@@ -62,6 +69,12 @@ class ExtensiveFormGame:
                 prob *= strategies[node.player][node.information_set][a]
             node = node.children[a]
         
+        return prob
+    
+    def calculate_reach_probability_infoset(self, strategies, infoset):
+        prob = 0
+        for node in self.get_nodes_in_infoset(infoset):
+            prob += self.calculate_reach_probability(strategies, node.history)
         return prob
     
     def calculate_probabilities(self, strategies, node: Node =None, prob=1):
@@ -267,7 +280,7 @@ class ExtensiveFormGame:
             p2_strategies.append(br_to_p1)
         
         
-            strategies ={
+            strategies = {
                 self.players[0]: self.average_strategy(p1_strategies)[self.players[0]],
                 self.players[1]: self.average_strategy(p2_strategies)[self.players[1]],
             }
@@ -276,31 +289,133 @@ class ExtensiveFormGame:
             exploitabilities.append(self.calculate_exploitability(strategies))
             
         return p1_strategies, p2_strategies, exploitabilities
-        # action_values = {}
-        # if node.player == player:
-        #     nodes = self.get_nodes_in_infoset(node.information_set, player)
-        #     reach_probabilities = [self.calculate_reach_probability(strategies, n.history) for n in nodes]
-        #     action_values = {}
-        #     best_response[node.information_set] = {}
-        #     for action in node.actions():
-        #         action_values[action] = 0
-        #         best_response[node.information_set][action] = 0
-                
-        #         for i, possible_node in enumerate(nodes):
-        #             action_values[action] += \
-        #                 reach_probabilities[i] * \
-        #                 self._find_best_response(strategies, possible_node.children[action], best_response, player, br_values)
-        #         # action_values.append(self._find_best_response(strategies, node.child, best_response, player, br_values))
-            
-        #     best_response[node.information_set][max(action_values, key=action_values.get)] = 1
-        # else:
-        #     for action in node.actions():
-        #         action_values[action] = \
-        #             strategies[node.player][node.information_set][action] * \
-        #             self._find_best_response(strategies, node.children[action], best_response, player, br_values)
-
-        # return max(action_values.values())
         
+
+    def regret_matching_cfr(self, regrets, player):
+        strat = {
+            player: {}
+        }
+        for infoset in self.infosets:
+            nodes = self.get_nodes_in_infoset(infoset, player)
+            if len(nodes) == 0:
+                continue
+
+            strat[player][infoset] = {}
+            regrets_plus = {k: max(v, 0) for k,v in regrets[infoset].items()}
+            reg_sum = sum(regrets_plus.values())
+            for a in self.actions_in_infoset[infoset]:
+                if reg_sum > 0:
+                    strat[player][infoset][a] = regrets_plus[a] / reg_sum
+                else:
+                    strat[player][infoset][a] = 1 / len(self.actions_in_infoset[infoset])
+        return strat
+
+    def _prepare_regrets(self, player):
+        regrets = {}
+        for infoset in self.infosets:
+            nodes = self.get_nodes_in_infoset(infoset, player)
+            if len(nodes) == 0:
+                continue
+            regrets[infoset] = {}
+            for a in self.actions_in_infoset[infoset]:
+                regrets[infoset][a] = 0
+        return regrets
+
+    def probability_of_reaching_state(self, strategies, h1, h2):
+        node = self.get_node_by_history(h1)
+        
+        if not h2.startswith(h1):
+            return 0
+        
+        history = h2[len(h1):]
+        
+        prob = 1
+        
+        for a in history:
+            if node.player in strategies:
+                prob *= strategies[node.player][node.information_set][a]
+            node = node.children[a]
+        
+        return prob
+
+    
+    def utility_in_infoset(self, strategies, infoset, player):
+        infoset_reach_prob = self.calculate_reach_probability_infoset(strategies, infoset)
+        if infoset_reach_prob == 0:
+            return 0
+        without_p = {key: val for key, val in strategies.items() if key != player}
+        
+        utility = 0
+        terminal_nodes = [self.get_node_by_history(h) for h in self.matrix.keys()]
+        for node in self.get_nodes_in_infoset(infoset, player):
+            for terminal_node in terminal_nodes:
+                utility += \
+                    self.calculate_reach_probability(without_p, node.history) * \
+                    self.probability_of_reaching_state(strategies, node.history, terminal_node.history) * \
+                    self.matrix[terminal_node.history][player]
+        utility /= infoset_reach_prob
+        return utility
+
+    def update_regrets(self, regrets, strategies, player):
+        without_p = {key: val for key, val in strategies.items() if key != player}
+
+        for infoset in self.get_infosets():
+            nodes = self.get_nodes_in_infoset(infoset, player)
+            if len(nodes) == 0:
+                continue
+            
+            for a in self.actions_in_infoset[infoset]:
+                strategies_where_a_in_infoset = copy.deepcopy(strategies)
+                for a2 in self.actions_in_infoset[infoset]:
+                    strategies_where_a_in_infoset[player][infoset][a2] = 0
+                strategies_where_a_in_infoset[player][infoset][a] = 1
+                
+                regrets[infoset][a] += \
+                    self.calculate_reach_probability_infoset(without_p, infoset) * \
+                    ( \
+                        self.utility_in_infoset(strategies_where_a_in_infoset, infoset, player) - \
+                        self.utility_in_infoset(strategies, infoset, player) \
+                    )
+                
+
+    def CFR(self, chance_strategies=None, iterations=50):
+        if chance_strategies is None:
+            chance_strategies = {c: self.uniform_strat_for_player(c)[c] for c in self.chance}
+
+        player1 = self.players[0]
+        player2 = self.players[1]
+        
+        regrets1 = self._prepare_regrets(player1)
+        regrets2 = self._prepare_regrets(player2)
+        
+        p1_strategies = []
+        p2_strategies = []
+        
+        exploitabilities = []
+        
+        for _ in range(iterations):
+            p1_strat = self.regret_matching_cfr(regrets1, player1)
+            p1_strategies.append(p1_strat)
+            
+            # p2_strat = self.regret_matching_cfr(regrets2, player2)
+            p1_with_chance = self.average_strategy(p1_strategies)
+            p1_with_chance.update(chance_strategies)
+            p2_strat = self.best_response(p1_with_chance)
+            p2_strategies.append(p2_strat)
+            
+            strategies = self.average_strategy(p1_strategies)
+            strategies.update(self.average_strategy(p2_strategies))
+            strategies.update(chance_strategies)
+            
+            self.update_regrets(regrets1, strategies, player1)
+            self.update_regrets(regrets2, strategies, player2)
+            
+            exploitabilities.append(self.calculate_exploitability(strategies))
+
+        
+        # return p1_strategies, p2_strategies, exploitabilities
+        return p1_strategies, p2_strategies, exploitabilities
+            
 
 
 def plot_exploitability(exploitabilities: np.array):
@@ -458,8 +573,6 @@ def avg_example():
     tree = ExtensiveFormGame(["Player1", "Player2"], [], root, matrix)
     return tree
 
-# tree = rps()
-tree = kuhn_poker()
 # opponent_strategies = {
 #     "Player1": {
 #         "": {
@@ -487,14 +600,112 @@ def pretty_print(strat, ind=''):
             # print(f'{ind}'+'}')
     else:
         print(f'{ind}{strat}')
+        
+def pretty_print_strat(strat: dict):
+    for player, strategy in strat.items():
+        print(f"Player: {player}")
+        for infoset, probabilities in strategy.items():
+            print(f"  information set: {infoset}")
+            for action, probability in probabilities.items():
+                print(f"    action: {action}, probability: {probability:.4f}")
+        print()
+
+
+def example_cfr(tree: ExtensiveFormGame, chance_strategies: dict, iterations: int=50):
+    p1, p2, expl = tree.CFR(iterations=iterations, chance_strategies=chance_strategies)
+    return tree.average_strategy(p1), tree.average_strategy(p2), expl
+
+def example_sp(tree: ExtensiveFormGame, iterations: int=50):
+    p1, p2, expl = tree.self_play(iterations=iterations)
+    return tree.average_strategy(p1), tree.average_strategy(p2), expl
+
+def summary_alg(name: str, strategies: dict, exploitability: float):
+    print(f"{name}:")
+    pretty_print_strat(strategies)
+    print(f"exploitability {exploitability}")
+
+
+def cfr_vs_selfplay(tree: ExtensiveFormGame, chance_strategies: dict=None, iterations: int=50):
+    chance_strategies = chance_strategies or {c: tree.uniform_strat_for_player(c)[c] for c in tree.chance}
+    p1_cfr, p2_cfr, expl_cfr = example_cfr(tree, chance_strategies=chance_strategies, iterations=iterations)
+    p1_sp, p2_sp, expl_sp = example_sp(tree, iterations=iterations)
+    
+    print(f"iterations: {iterations}")
+    strategies_sp = p1_sp
+    strategies_sp.update(p2_sp)
+    strategies_cfr = p1_cfr
+    strategies_cfr.update(p2_cfr)
+    summary_alg("SELFPLAY", strategies_sp, expl_sp[-1])
+    summary_alg("CFR", strategies_cfr, expl_cfr[-1])
+    print()
+    print(f"p1 SELFPLAY vs p2 CFR:")
+    
+    strategies = p1_sp
+    strategies.update(p2_cfr)
+    strategies.update(chance_strategies)
+    game_val = tree.calculate_player_values(strategies)
+    print(f"p1 {game_val[tree.players[0]]}, p2 {game_val[tree.players[1]]}")
+    print()
+    
+    print(f"p1 CFR vs p2 SELFPLAY:")
+    strategies = p1_cfr
+    strategies.update(p2_sp)
+    strategies.update(chance_strategies)
+    game_val = tree.calculate_player_values(strategies)
+    print(f"p1 {game_val[tree.players[0]]}, p2 {game_val[tree.players[1]]}")
+
 
 if __name__=="__main__":
+    # tree = rps()
 
-    p1, p2, expl = tree.self_play(iterations=100)
-    pretty_print(tree.average_strategy(p1))
-    pretty_print(tree.average_strategy(p2))
-    print(f"\nLast exploitability {expl[-1]}")
-    plot_exploitability(expl)
+    tree = kuhn_poker()
+    iterations = 200
+    
+    cfr_vs_selfplay(tree, iterations=200)
+
+    # pretty_print(tree.average_strategy(p1))
+    # pretty_print(tree.average_strategy(p2))
+    # print(f"\nLast exploitability {expl[-1]}")
+    # plot_exploitability(expl)
+    
+    # plot_exploitability(expl)
+
+    
+    
+    # plot_exploitability(expl)
+
+    # print("SELFPLAY:")
+    # p1_sp, p2_sp, expl_sp = tree.self_play(iterations=iterations)
+    # print(f"iterations: {iterations}, exploitability {expl_sp[-1]}, \np1_strat {tree.average_strategy(p1_sp)}")
+
+    # print("\n\n")
+    # print("CFR:")
+    # p1_cfr, p2_cfr, expl_cfr = tree.CFR(iterations=iterations)
+    # print(f"\nCFR iterations: {iterations}, exploitability {expl_cfr[-1]}, \np1_strat {pretty_print_strat(tree.average_strategy(p1_cfr))}")
+
+    # print("\n\n")
+    # print("PLAYER1 CFR VS PLAYER2 SELFPLAY")
+    # p1 = tree.average_strategy(p1_cfr)
+    # p2 = tree.average_strategy(p2_sp)
+
+    # strategies = p1
+    # strategies.update(p2)
+    # chance_strategies = {c: tree.uniform_strat_for_player(c)[c] for c in tree.chance}
+    # strategies.update(chance_strategies)
+    # values = tree.calculate_player_values(strategies)
+    # print(f"CFR val {values['Player1']}, SP val {values['Player2']}")
+
+    # print("\n")
+    # print("PLAYER1 SELFPLAY VS PLAYER2 CFR")
+    # p1 = tree.average_strategy(p1_sp)
+    # p2 = tree.average_strategy(p2_cfr)
+    # strategies = p1
+    # strategies.update(p2)
+    # chance_strategies = {c: tree.uniform_strat_for_player(c)[c] for c in tree.chance}
+    # strategies.update(chance_strategies)
+    # values = tree.calculate_player_values(strategies)
+    # print(f"SP val {values['Player1']}, CFR val {values['Player2']}")
+
 
 
 

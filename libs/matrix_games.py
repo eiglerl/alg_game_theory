@@ -227,16 +227,53 @@ def update_regrets(regrets: np.array, rewards: np.array, current_strat_reward: f
     regrets += rewards - current_strat_reward
     
 
-def verify_support(matrix: np.array, support_row: np.array, support_col: np.array):
-    submatrix = matrix[support_row][:, support_col]
-    result = verify_matrix(submatrix)
+def verify_support(matrix: np.array, support_row: np.array, support_col: np.array, for_row=True):
+    submatrix = matrix.T[support_row][:, support_col]
+    # print(submatrix)
+    # print()
+    if for_row:
+        result = verify_matrix(submatrix.T)
+    else:
+        result = verify_matrix(submatrix)
     
     if result.success:
-        return result.x
+        return result.x[1:]
     return None
     
 def verify_matrix(matrix: np.array):
     num_rows, num_cols = matrix.shape
+    
+    # 1*utility + matrix
+    # A_eq = np.hstack([np.array([[1] * num_cols]).T, matrix])
+    # A_eq = np.vstack([A_eq, [0] + [1] * num_rows])
+    A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
+    A_eq = np.vstack([A_eq, [0] + [1] * num_cols])
+    print(A_eq)
+    print()
+    b_eq = [0] * num_rows + [1]
+    # print(b_eq)
+    # print()
+    c = np.zeros(shape=(num_cols + 1))
+    c[0] = 1
+    # print(c)
+    # print()
+    
+    bounds = [(None, None)] + [(0, None) for _ in range(num_cols)]
+    # print(bounds)
+    # print()
+    
+    res = linprog(c=c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
+    # print(res)
+    return res
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     # A_eq = np.ones(shape=(1, num_rows + 1))
     # A_eq[0, -1] = 0
@@ -268,19 +305,19 @@ def verify_matrix(matrix: np.array):
     # A_eq = np.hstack([np.array([[1] * num_cols]).T, matrix.T])
     # A_eq = np.vstack([A_eq, [0] + [1] * num_rows])
     
-    A_ub = np.hstack([np.array([[1] * num_cols]).T, -matrix.T])
-    A_eq = np.ones(shape=(1, num_rows + 1))
-    A_eq[0, 0] = 0
+    # A_ub = np.hstack([np.array([[1] * num_cols]).T, -matrix.T])
+    # A_eq = np.ones(shape=(1, num_rows + 1))
+    # A_eq[0, 0] = 0
     
-    # b_eq = [0] * num_cols + [1]
-    b_ub = [0] * num_cols 
-    b_eq = [1]
+    # # b_eq = [0] * num_cols + [1]
+    # b_ub = [0] * num_cols 
+    # b_eq = [1]
     
-    c = [-1] + [0] * num_rows 
+    # c = [-1] + [0] * num_rows 
 
-    bounds = [(None, None)] + [(0.,None) for _ in range(num_rows)]
+    # bounds = [(None, None)] + [(0.,None) for _ in range(num_rows)]
 
-    return linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+    # return linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
 
     # # A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
     # # A_eq = np.vstack([A_eq, [0]+[1]*num_cols])
@@ -355,25 +392,43 @@ if __name__=="__main__":
     #                     [1, -10, -10],
     #                     [-10, -10, -10]])
     
-    pd1 = np.array(
-        [[-2, 0],
-        [-3, -1]])
-    pd2 = np.array(
-        [[-2,-3],
-        [0,-1]]
-    )
+    matrix1 = np.array([[0,0,-10],
+                        [1,-10,-10],
+                        [-10,-10,-10]])
+    
+    matrix2 = matrix1.T
+    
+    row_supp = [0,1]
+    col_supp = [0,1]
+    res = verify_support(matrix1, row_supp, col_supp)
+    print()
+    print()
+    print(res)
+    
+    
+    res = verify_support(matrix2, row_supp, col_supp, for_row=False)
+    print()
+    print(res)
+    
+    # pd1 = np.array(
+    #     [[-2, 0],
+    #     [-3, -1]])
+    # pd2 = np.array(
+    #     [[-2,-3],
+    #     [0,-1]]
+    # )
 
-    x = find_correlated_eq(pd1, pd2)
-    print(x)
-    print("---------")
+    # x = find_correlated_eq(pd1, pd2)
+    # print(x)
+    # print("---------")
     
-    supp_r = [[0,1]]
-    supp_c = [[0,1,2]]
+    # supp_r = [[0,1]]
+    # supp_c = [[0,1,2]]
     
-    for r in supp_r:
-        for c in supp_c:
-            x = verify_support(matrix_p1, r, c)
-            print(f"{r}, {c} - {x}")
+    # for r in supp_r:
+    #     for c in supp_c:
+    #         x = verify_support(matrix_p1, r, c)
+    #         print(f"{r}, {c} - {x}")
             
     
 

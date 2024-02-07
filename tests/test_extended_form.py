@@ -273,7 +273,7 @@ def test_best_response_simple_poker():
     
     deltas = game.calculate_deltas(strategies)
     print(br)
-    assert True
+    assert False
 
 def test_regret_matching():
     def check_uniform(strategy, player):

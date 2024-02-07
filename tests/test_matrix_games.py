@@ -58,6 +58,53 @@ def test_avg_strat2():
     
     assert np.array_equal(avg_strat, np.array([3/4, 0, 1/4]))
 
+def test_iterated_removal1():
+    matrix1 = np.array([[13,1,7], [4,3,6], [-1,2,8]])
+    matrix2 = np.array([[3,4,3], [1,3,2], [9,8,-1]])
+
+    matrixA, matrixB = matrix_games.iterated_removal_of_dominated_strategies(matrix1=matrix1, matrix2=matrix2)
+    expected_matrixA = np.array([[13, 1], [4, 3]])
+    expected_matrixB = np.array([[3, 4], [1, 3]])
+
+    assert np.array_equal(matrixA, expected_matrixA)
+    assert np.array_equal(matrixB, expected_matrixB)
+
+def test_iterated_removal2():
+    matrix1 = np.array([[10,5,3], [0,4,6], [2,3,2]])
+    matrix2 = np.array([[4,3,2], [1,6,0], [1,5,8]])
+
+    matrixA, matrixB = matrix_games.iterated_removal_of_dominated_strategies(matrix1=matrix1, matrix2=matrix2)
+    expected_matrixA = np.array([[10]])
+    expected_matrixB = np.array([[4]])
+
+    assert np.array_equal(matrixA, expected_matrixA)
+    assert np.array_equal(matrixB, expected_matrixB)
+
+def test_epsilon_computation1():
+    # Is a NE
+    matrix1 = np.array([[3,0],[0,1]])
+    matrix2 = np.array([[1,0],[0,3]])
+    
+    expected_epsilon = 0
+    row = np.array([1,0])
+    col = np.array([1,0])
+    epsilon = matrix_games.calculate_epsilon(matrix1, matrix2, row, col)
+    
+    assert np.isclose(epsilon, expected_epsilon, atol=1e-8)
+
+def test_epsilon_computation2():
+    expected_epsilon = 0.1
+
+    matrix1 = np.array([[1,0],[1 + expected_epsilon,500]])
+    matrix2 = np.array([[1,0],[1,500]])
+    
+    row = np.array([1,0])
+    col = np.array([1,0])
+    epsilon = matrix_games.calculate_epsilon(matrix1, matrix2, row, col)
+    
+    assert np.isclose(epsilon, expected_epsilon, atol=1e-8)
+
+
 def test_best_response_to_average_strat():
     matrix = matrix_games.rps_matrix()
     

@@ -5,6 +5,8 @@ from scipy.optimize import linprog
 from itertools import combinations
 from ortools.linear_solver import pywraplp
 
+# UTILITY FUNCTIONS
+
 # Strategy where action a is played with probability 1
 def create_pure_strategy(n: int, a: int):
     assert n > 0 and a >= 0 and a < n 
@@ -28,6 +30,8 @@ def rps_matrix():
 # Game of chicken, two matrices
 def game_of_chicken():
     return np.array([[0,-1], [1,-10]]), np.array([[0,1],[-1,-10]])
+
+# WEEK 1 HW
 
 def best_response_to_row_player(matrix: np.array, row_strategy: np.array):
     # Ensure that row_strategy is a 1D array
@@ -62,21 +66,6 @@ def compute_game_value(matrix1: np.array, matrix2: np.array, row: np.array, col:
 def compute_zerosum_game_value(matrix: np.array, row: np.array, col: np.array):
     return compute_game_value(matrix, -matrix, row, col)
 
-def best_response_value_function(matrix: np.array, step_size: float):
-    import matplotlib.pyplot as plt
-
-    # matrix 2xN
-    steps = np.arange(0, 1 + step_size, step_size)
-    vals = []
-    for step in steps:
-        new_strat = np.array([step, 1-step])
-        br = best_response_to_row_player(-matrix, new_strat)
-
-        p1_val, p2_val = compute_zerosum_game_value(matrix, new_strat, br)
-        vals.append(p1_val)
-
-    plt.scatter(steps, vals, s=10)
-    plt.show()
 
 def average_strat(strats: list):
     # Average strategy as sum of probabilities
@@ -103,6 +92,139 @@ def best_reponse_to_last_row_strat(matrix: np.array, past_row_strategies: list):
 def best_reponse_to_last_col_strat(matrix: np.array, past_col_strategies: list):
     return best_response_to_column_player(matrix, past_col_strategies[-1])
 
+
+def find_dominated_actions(matrix: np.array, axis: int):
+    dominated_actions = []
+    number_of_actions = matrix.shape[axis]
+    for i in range(number_of_actions):
+        for j in range(number_of_actions):
+            if i >= j:
+                continue
+            if np.all(np.take(matrix, i, axis=axis) >= np.take(matrix, j, axis=axis)):
+                dominated_actions.append(j)
+    return dominated_actions
+
+def find_all_dominated(matrix1, matrix2):
+    dominated_rows = find_dominated_actions(matrix1, axis=0)
+    dominated_columns = find_dominated_actions(matrix2, axis=1)
+    return dominated_rows, dominated_columns
+
+def iterated_removal_of_dominated_strategies(matrix1, matrix2):
+    temp1 = matrix1[:]
+    temp2 = matrix2[:]
+    while True:
+        dominated_rows, dominated_columns = find_all_dominated(temp1, temp2)
+        if len(dominated_rows) + len(dominated_columns) == 0:
+            break
+    
+        # Create bool masks with False in dominated strategies
+        non_dominated_mask = np.ones(temp1.shape[0], dtype=bool)
+        non_dominated_mask[dominated_rows] = False
+        
+        temp1 = temp1[non_dominated_mask]
+        temp2 = temp2[non_dominated_mask]
+
+        non_dominated_mask = np.ones(temp1.shape[1], dtype=bool)
+        non_dominated_mask[dominated_columns] = False
+
+        # Use masks to get matrices without dominated strategies
+        temp1 = temp1[:,non_dominated_mask]
+        temp2 = temp2[:,non_dominated_mask]
+
+    return temp1, temp2
+
+# WEEK 2
+
+def best_response_value_function(matrix: np.array, step_size: float):
+    import matplotlib.pyplot as plt
+
+    # matrix 2xN
+    steps = np.arange(0, 1 + step_size, step_size)
+    vals = []
+    for step in steps:
+        new_strat = np.array([step, 1-step])
+        br = best_response_to_row_player(-matrix, new_strat)
+
+        p1_val, p2_val = compute_zerosum_game_value(matrix, new_strat, br)
+        vals.append(p1_val)
+
+    plt.scatter(steps, vals, s=10)
+    plt.show()
+
+
+def verify_support(matrix: np.array, support_row: np.array, support_col: np.array, for_row=True):
+    submatrix = matrix.T[support_row][:, support_col]
+    # print(submatrix)
+    # print()
+    if for_row:
+        result = verify_matrix(submatrix.T)
+    else:
+        result = verify_matrix(submatrix)
+    
+    if result.success:
+        return result.x[1:]
+    return None
+    
+def verify_matrix(matrix: np.array):
+    num_rows, num_cols = matrix.shape
+    
+    # 1*utility + matrix
+    # A_eq = np.hstack([np.array([[1] * num_cols]).T, matrix])
+    # A_eq = np.vstack([A_eq, [0] + [1] * num_rows])
+    A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
+    A_eq = np.vstack([A_eq, [0] + [1] * num_cols])
+    print(A_eq)
+    print()
+    b_eq = [0] * num_rows + [1]
+    # print(b_eq)
+    # print()
+    c = np.zeros(shape=(num_cols + 1))
+    c[0] = 1
+    # print(c)
+    # print()
+    
+    bounds = [(None, None)] + [(0, None) for _ in range(num_cols)]
+    # print(bounds)
+    # print()
+    
+    res = linprog(c=c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
+    # print(res)
+    return res
+
+# WEEK 3
+
+def calculate_deltas(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array) -> np.array:
+    # delta_i = u_i(br to -i, -i) - u_i(pi)
+    u_row, u_col = compute_game_value(matrix1, matrix2, row, col)
+    
+    br_to_col = best_response_to_column_player(matrix1, col)
+    br_to_row = best_response_to_row_player(matrix2, row)
+    
+    u_br_row, _ = compute_game_value(matrix1, matrix2, br_to_col, col)
+    _, u_br_col = compute_game_value(matrix1, matrix2, row, br_to_row)
+    
+    return np.array([u_br_row - u_row, u_br_col - u_col])
+
+def calculate_nash_conv(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array) -> float:
+    return np.sum(calculate_deltas(matrix1, matrix2, row, col))
+
+def calculate_exploitability(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array) -> float:
+    return calculate_nash_conv(matrix1, matrix2, row, col)/2
+
+def calculate_epsilon(matrix1, matrix2, row, col):
+    br_to_row = best_response_to_row_player(matrix2, row)
+    br_to_col = best_response_to_column_player(matrix1, col)
+    
+    utility_row, utility_col = compute_game_value(matrix1, matrix2, row, col)
+    
+    utility_br_to_col, utility_col_vs_br = compute_game_value(matrix1, matrix2, br_to_col, col)
+    utility_row_vs_br, utility_br_to_row = compute_game_value(matrix1, matrix2, row, br_to_row)
+    
+    epsilon_row = utility_br_to_col - utility_row
+    epsilon_col = utility_br_to_row - utility_col
+    
+    return max(epsilon_row, epsilon_col)
+    
 
 def self_play(matrix1: np.array, matrix2: np.array, iterations: int,
             strat_generator_for_row: Callable[[np.array, List[np.array]], np.array],
@@ -131,23 +253,6 @@ def self_play(matrix1: np.array, matrix2: np.array, iterations: int,
     return row_strategies, col_strategies, exploitabilities
 
 
-def calculate_deltas(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array) -> np.array:
-    # delta_i = u_i(br to -i, -i) - u_i(pi)
-    u_row, u_col = compute_game_value(matrix1, matrix2, row, col)
-    
-    br_to_col = best_response_to_column_player(matrix1, col)
-    br_to_row = best_response_to_row_player(matrix2, row)
-    
-    u_br_row, _ = compute_game_value(matrix1, matrix2, br_to_col, col)
-    _, u_br_col = compute_game_value(matrix1, matrix2, row, br_to_row)
-    
-    return np.array([u_br_row - u_row, u_br_col - u_col])
-
-def calculate_nash_conv(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array) -> float:
-    return np.sum(calculate_deltas(matrix1, matrix2, row, col))
-
-def calculate_exploitability(matrix1: np.array, matrix2: np.array, row: np.array, col: np.array) -> float:
-    return calculate_nash_conv(matrix1, matrix2, row, col)/2
 
 def plot_exploitability(exploitabilities: np.array):
     plt.plot(list(range(len(exploitabilities))), exploitabilities)
@@ -158,6 +263,114 @@ def plot_two_exploitability(expl1: np.array, expl2: np.array):
     plt.plot(list(range(len(expl2))), expl2)
     plt.show()
 
+
+# WEEK 4
+
+# NE using LP
+# CE using LP
+
+def support_enumeration(matrix: np.array):
+    num_rows, num_cols = matrix.shape
+
+    # Generate all non-empty subsets
+    all_row_subsets = [np.array(subset) for i in range(1, num_rows + 1)
+                for subset in combinations(range(num_rows), i)]
+    all_col_subsets = [np.array(subset) for i in range(1, num_cols + 1)
+                for subset in combinations(range(num_cols), i)]
+    
+    eq = []
+    for r in all_row_subsets:
+        for c in all_col_subsets:
+            res = verify_support(matrix, r, c)
+            eq.append((res, r, c))
+    return eq
+
+def find_correlated_equilibrium(matrix1, matrix2):
+    num_strategies_player1, num_strategies_player2 = matrix1.shape
+    A_ub = []
+    
+    # constraints for player 1
+    # choosing action a
+    for action in range(num_strategies_player1):
+        # choosing action a'
+        for action2 in range(num_strategies_player1):
+            if action == action2:
+                # would be zero
+                continue
+            A_ub.append([])
+
+            for real_opponent_action in range(num_strategies_player2):
+                # print(f"{matrix1[action, opponent_action]} - {matrix1[action2, opponent_action]}", end=',')
+                
+                # add dummy values for other states
+                for other_action in range(action):
+                    A_ub[-1].append(0)
+                #     print(f"p{other_action+1}{real_opponent_action+1}", end=',')
+                # print(f"p{action+1}{real_opponent_action+1}", end=',')
+
+                # the actual constraint
+                A_ub[-1].append(-(matrix1[action, real_opponent_action] - matrix1[action2, real_opponent_action]))
+                
+                # add dummy values for other states
+                for other_action in range(action+1, num_strategies_player1):
+                    A_ub[-1].append(0)
+                    # print(f"p{other_action+1}{real_opponent_action+1}", end=',')
+
+            print()
+
+    # constraints for player 2
+    for action in range(num_strategies_player2):
+        # choosing action a'
+        for action2 in range(num_strategies_player2):
+            if action == action2:
+                continue
+            A_ub.append([])
+
+            for real_opponent_action in range(num_strategies_player1):
+                for other_action in range(action):
+                    A_ub[-1].append(0)
+                #     print(f"p{other_action+1}{real_opponent_action+1}", end=',')
+                # print(f"p{action+1}{real_opponent_action+1}", end=',')
+
+                # print(f"{matrix2[opponent_action, action]} - {matrix2[opponent_action, action2]}", end=',')
+                A_ub[-1].append(-(matrix2[real_opponent_action, action] - matrix2[real_opponent_action, action2]))
+                for other_action in range(action+1, num_strategies_player2):
+                    A_ub[-1].append(0)
+                    # print(f"p{other_action+1}{real_opponent_action+1}", end=',')
+
+            print()
+    print("A_ub:")
+    for l in A_ub:
+        print(l)
+    # print(A_ub)
+    b_ub = [0] * (num_strategies_player2 * (num_strategies_player2-1) + num_strategies_player1 * (num_strategies_player1 - 1))
+    print(b_ub)
+    
+    # contraint for a probability distribution (probabilities must sum up to 1)
+    A_eq = [[1] * (num_strategies_player1 * num_strategies_player2)]
+    b_eq = 1
+    
+    # make sure the probabilities cannot be negative
+    bounds = [(0, None) for _ in range(num_strategies_player1 * num_strategies_player2)]
+    
+    # function to optimize
+    c = []
+    for action1 in range(num_strategies_player1):
+        for action2 in range(num_strategies_player2):
+            # scipy.linprog minimizes
+            c.append(-(matrix1[action1, action2] + matrix2[action1, action2]))
+    print(c)
+    
+    
+    
+    # Solve the linear program
+    result = linprog(c, A_eq=A_eq, b_eq=b_eq, A_ub=A_ub, b_ub=b_ub, bounds=bounds, method='highs')
+    if result.success:
+        return result.x.reshape((num_strategies_player1, num_strategies_player2))
+    return None
+
+
+# WEEK 5
 
 def regret_minimization(matrix1: np.array, matrix2: np.array, iterations: int, regret_matching_alg: Callable[[np.array], np.array]):
     # Prepare arrays to store regrets
@@ -227,136 +440,6 @@ def update_regrets(regrets: np.array, rewards: np.array, current_strat_reward: f
     regrets += rewards - current_strat_reward
     
 
-def verify_support(matrix: np.array, support_row: np.array, support_col: np.array, for_row=True):
-    submatrix = matrix.T[support_row][:, support_col]
-    # print(submatrix)
-    # print()
-    if for_row:
-        result = verify_matrix(submatrix.T)
-    else:
-        result = verify_matrix(submatrix)
-    
-    if result.success:
-        return result.x[1:]
-    return None
-    
-def verify_matrix(matrix: np.array):
-    num_rows, num_cols = matrix.shape
-    
-    # 1*utility + matrix
-    # A_eq = np.hstack([np.array([[1] * num_cols]).T, matrix])
-    # A_eq = np.vstack([A_eq, [0] + [1] * num_rows])
-    A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
-    A_eq = np.vstack([A_eq, [0] + [1] * num_cols])
-    print(A_eq)
-    print()
-    b_eq = [0] * num_rows + [1]
-    # print(b_eq)
-    # print()
-    c = np.zeros(shape=(num_cols + 1))
-    c[0] = 1
-    # print(c)
-    # print()
-    
-    bounds = [(None, None)] + [(0, None) for _ in range(num_cols)]
-    # print(bounds)
-    # print()
-    
-    res = linprog(c=c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
-    # print(res)
-    return res
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    # A_eq = np.ones(shape=(1, num_rows + 1))
-    # A_eq[0, -1] = 0
-    
-    # b_eq = 1
-    
-    
-    # A_ub = np.hstack(
-    #     (-matrix.T, np.ones(shape=(num_cols, 1)))
-    # )
-    # b_ub = np.zeros(shape=(num_cols, 1))
-    
-    # c = np.zeros(shape=(num_rows + 1))
-    # c[-1] = -1
-    
-    # bounds = [(0, None) for _ in range(num_rows)] + [(None, None)]
-    
-    # res = linprog(
-    #     c=c,
-    #     A_ub=A_ub,
-    #     b_ub=b_ub,
-    #     A_eq=A_eq,
-    #     b_eq=b_eq,
-    #     bounds=bounds,
-    # )
-    
-    # return res
-    
-    # A_eq = np.hstack([np.array([[1] * num_cols]).T, matrix.T])
-    # A_eq = np.vstack([A_eq, [0] + [1] * num_rows])
-    
-    # A_ub = np.hstack([np.array([[1] * num_cols]).T, -matrix.T])
-    # A_eq = np.ones(shape=(1, num_rows + 1))
-    # A_eq[0, 0] = 0
-    
-    # # b_eq = [0] * num_cols + [1]
-    # b_ub = [0] * num_cols 
-    # b_eq = [1]
-    
-    # c = [-1] + [0] * num_rows 
-
-    # bounds = [(None, None)] + [(0.,None) for _ in range(num_rows)]
-
-    # return linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
-
-    # # A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
-    # # A_eq = np.vstack([A_eq, [0]+[1]*num_cols])
-    # A_ub = np.hstack([np.array([[1] * num_rows]).T, -matrix])
-    # A_eq = np.ones(shape=(1, num_cols + 1))
-    # A_eq[0, 0] = 0
-    
-    # # b_eq = [0] * num_rows + [1]
-    # b_ub = [0] * num_rows 
-    # b_eq = [1]
-
-    # c = [-1] + [0] * num_cols
-    
-    # bounds = [(None, None)] + [(0,1) for _ in range(num_cols)]
-    
-    # return linprog(c=c, A_ub=A_ub, b_ub=b_ub, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
-
-def support_enumeration(matrix: np.array):
-    num_rows, num_cols = matrix.shape
-
-    # Generate all non-empty subsets
-    all_row_subsets = [np.array(subset) for i in range(1, num_rows + 1)
-                for subset in combinations(range(num_rows), i)]
-    all_col_subsets = [np.array(subset) for i in range(1, num_cols + 1)
-                for subset in combinations(range(num_cols), i)]
-    
-    eq = []
-    for r in all_row_subsets:
-        for c in all_col_subsets:
-            res = verify_support(matrix, r, c)
-            eq.append((res, r, c))
-    return eq
-
-def find_correlated_eq(matrix1: np.array, matrix2: np.array):
-    A_ub = matrix1.reshape((1,-1))
-    print(A_ub)
-    
-    
-
 # def best_response_to_last_strat(past_opponent_strategies: list):
     
 # matrix = rps_matrix()
@@ -392,24 +475,34 @@ if __name__=="__main__":
     #                     [1, -10, -10],
     #                     [-10, -10, -10]])
     
-    matrix1 = np.array([[0,0,-10],
-                        [1,-10,-10],
-                        [-10,-10,-10]])
+    # matrix1 = np.array([[0,0,-10],
+    #                     [1,-10,-10],
+    #                     [-10,-10,-10]])
     
-    matrix2 = matrix1.T
+    # matrix2 = matrix1.T
     
-    row_supp = [0,1]
-    col_supp = [0,1]
-    res = verify_support(matrix1, row_supp, col_supp)
-    print()
-    print()
+    matrix1 = np.array([[4,1],
+                        [5,0]])
+    matrix2 = np.array([[4,5],
+                        [1,0]])
+    
+    res = find_correlated_equilibrium(matrix1, matrix2)
     print(res)
+    # row_supp = [0,1]
+    # col_supp = [0,1]
+    # res = verify_support(matrix1, row_supp, col_supp)
+    # print()
+    # print()
+    # print(res)
     
     
-    res = verify_support(matrix2, row_supp, col_supp, for_row=False)
-    print()
-    print(res)
+    # res = verify_support(matrix2, row_supp, col_supp, for_row=False)
+    # print()
+    # print(res)
     
+    # print()
+    # res = find_correlated_equilibrium(matrix1, matrix2)
+    # print(res)
     # pd1 = np.array(
     #     [[-2, 0],
     #     [-3, -1]])

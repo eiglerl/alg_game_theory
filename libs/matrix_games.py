@@ -152,40 +152,92 @@ def best_response_value_function(matrix: np.array, step_size: float):
     plt.show()
 
 
-def verify_support(matrix: np.array, support_row: np.array, support_col: np.array, for_row=True):
-    submatrix = matrix.T[support_row][:, support_col]
+def verify_support_row(matrix: np.array, support_row: np.array, support_col: np.array):
+    submatrix = matrix[support_row][:, support_col]
     # print(submatrix)
     # print()
-    if for_row:
-        result = verify_matrix(submatrix.T)
-    else:
-        result = verify_matrix(submatrix)
+    result = verify_matrix(submatrix)
     
     if result.success:
-        return result.x[1:]
+        print(result.x[2:])
+        return result.x[2:2+len(support_row)]
     return None
     
+
 def verify_matrix(matrix: np.array):
     num_rows, num_cols = matrix.shape
     
     # 1*utility + matrix
     # A_eq = np.hstack([np.array([[1] * num_cols]).T, matrix])
     # A_eq = np.vstack([A_eq, [0] + [1] * num_rows])
-    A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
-    A_eq = np.vstack([A_eq, [0] + [1] * num_cols])
-    print(A_eq)
+    
+    print(matrix)
     print()
-    b_eq = [0] * num_rows + [1]
-    # print(b_eq)
+    
+    A_eq = []
+    # column player
+    for i in range(num_rows):
+        # player values
+        A_eq.append([1, 0])
+        for j in range(num_cols):
+            A_eq[-1].append(matrix[i,j])
+            
+        for k in range(num_rows):
+            A_eq[-1].append(0)
+            
+    # make sure column player's strategy sums up to 1
+    A_eq.append([0, 0])
+    for i in range(num_cols):
+        A_eq[-1].append(1)
+    for j in range(num_rows):
+        A_eq[-1].append(0)
+        
+    # row player
+    for i in range(num_cols):
+        # player values
+        A_eq.append([0, 1])
+        for k in range(num_cols):
+            A_eq[-1].append(0)
+        
+        for j in range(num_rows):
+            A_eq[-1].append(matrix[j, i])
+            
+    # make sure row player's strategy sums up to 1
+    A_eq.append([0, 0])
+    for i in range(num_cols):
+        A_eq[-1].append(0)
+    for j in range(num_rows):
+        A_eq[-1].append(1)
+
+    
+    print("A_eq")
+    for a in A_eq:
+        print(a)
+    print()
+    
+    print("b_eq")
+    b_eq = [0] * num_rows + [1] + [0] * num_cols + [1]
+    print(b_eq)
+    
+    print("c")
+    c = [1] + [1] + [0] * (num_cols + num_rows)
+    print(c)
+    
+    # A_eq = np.hstack([np.array([[1] * num_rows]).T, matrix])
+    # A_eq = np.vstack([A_eq, [0] + [1] * num_cols])
+    # print(A_eq)
     # print()
-    c = np.zeros(shape=(num_cols + 1))
-    c[0] = 1
+    # b_eq = [0] * num_rows + [1]
+    # # print(b_eq)
+    # # print()
+    # c = np.zeros(shape=(num_cols + 1))
+    # c[0] = 1
     # print(c)
     # print()
     
-    bounds = [(None, None)] + [(0, None) for _ in range(num_cols)]
-    # print(bounds)
-    # print()
+    bounds = [(None, None)] * 2 + [(0, None) for _ in range(num_cols+num_rows)]
+    print("bounds")
+    print(bounds)
     
     res = linprog(c=c, A_eq=A_eq, b_eq=b_eq, bounds=bounds)
     # print(res)
@@ -468,12 +520,14 @@ def update_regrets(regrets: np.array, rewards: np.array, current_strat_reward: f
 # row_strategy = np.array([0.3, 0.5, 0.2])
 
 if __name__=="__main__":
-    matrix_p1 = np.array([[0, -1, 1],
-                        [1, 0, -1],
-                        [-1, 1, 0]])
-    # matrix_p1 = np.array([[0, 0, -10],
-    #                     [1, -10, -10],
-    #                     [-10, -10, -10]])
+    # matrix_p1 = np.array([[0, -1, 1],
+    #                     [1, 0, -1],
+    #                     [-1, 1, 0]])
+    matrix_p1 = np.array([[0, 0, -10],
+                        [1, -10, -10],
+                        [-10, -10, -10]])
+    
+    # matrix_p1, matrix_p2 = game_of_chicken()
     
     # matrix1 = np.array([[0,0,-10],
     #                     [1,-10,-10],
@@ -481,19 +535,19 @@ if __name__=="__main__":
     
     # matrix2 = matrix1.T
     
-    matrix1 = np.array([[4,1],
-                        [5,0]])
-    matrix2 = np.array([[4,5],
-                        [1,0]])
+    # matrix1 = np.array([[4,1],
+    #                     [5,0]])
+    # matrix2 = np.array([[4,5],
+    #                     [1,0]])
     
-    res = find_correlated_equilibrium(matrix1, matrix2)
-    print(res)
-    # row_supp = [0,1]
-    # col_supp = [0,1]
-    # res = verify_support(matrix1, row_supp, col_supp)
-    # print()
-    # print()
+    # res = find_correlated_equilibrium(matrix1, matrix2)
     # print(res)
+    row_supp = [0,1]
+    col_supp = [0,1]
+    res = verify_support_row(matrix_p1, row_supp, col_supp)
+    print()
+    print()
+    print(res)
     
     
     # res = verify_support(matrix2, row_supp, col_supp, for_row=False)

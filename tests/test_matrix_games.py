@@ -143,9 +143,29 @@ def test_verify_given_support_using_lp():
                           [-10, -10, -10]])
 
 
-    result = matrix_games.verify_support(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])
+    result = matrix_games.verify_support_row(matrix = matrix_p1, support_row=[0, 1], support_col = [0, 1, 2])
     assert np.allclose(result, [0.90909, 0.09090], rtol=1e-3)
 
+
+def test_correlated_equilibrium():
+    matrix1 = np.array([[4,1],
+                        [5,0]])
+    matrix2 = np.array([[4,5],
+                        [1,0]])
+
+    res = matrix_games.find_correlated_equilibrium(matrix1, matrix2)
+    
+    assert res is not None
+    assert res.shape == (2,2)
+    
+    # constraints
+    assert res[0,1] >= res[0,0]
+    assert res[0,1] >= res[1,1]
+    assert res[1,0] >= res[0,0]
+    assert res[1,0] >= res[1,1]
+    assert np.isclose(np.sum(res), 1, atol=1e-8)
+    assert min(res) >= 0
+    
 
     # result = week2.verify_support_one_side(matrix = matrix_p2.T, support_row=[0, 1, 2], support_col = [0, 1])
     # assert result is None
